@@ -6,6 +6,34 @@ const modeBtn = document.getElementById('mode-btn');
 const adminPanel = document.getElementById('admin-panel');
 const bgUpload = document.getElementById('bg-upload');
 
+// --- NOUVEAU : Éléments de l'historique ---
+const historyBtn = document.getElementById('history-btn');
+const historyPanel = document.getElementById('history-panel');
+const historyList = document.getElementById('history-list');
+
+// Fonction pour ajouter un message à l'historique
+function logAction(message) {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    const li = document.createElement('li');
+    li.className = 'history-item';
+    li.innerHTML = `<span class="history-time">${timeString}</span><span>${message}</span>`;
+    
+    historyList.prepend(li); // Ajoute en haut de la liste
+
+    // On limite à 50 messages pour la fluidité
+    if (historyList.children.length > 50) {
+        historyList.removeChild(historyList.lastChild);
+    }
+}
+
+// Afficher/Cacher le panneau d'historique
+historyBtn.onclick = () => {
+    historyPanel.classList.toggle('hidden');
+};
+// ------------------------------------------
+
 let imgTest = new Image();
 imgTest.src = `/fond.jpg?t=${new Date().getTime()}`;
 imgTest.onload = () => map.style.backgroundImage = `url('${imgTest.src}')`;
@@ -23,12 +51,13 @@ fetch('/config.json')
         config = data;
         localStorage.setItem('trainConfig', JSON.stringify(config)); 
         renderSwitches();
+        logAction("Système démarré et synchronisé");
     })
     .catch(error => {
-        console.log("Passage sur la sauvegarde de secours du navigateur...");
         let savedConfig = localStorage.getItem('trainConfig');
         if (savedConfig) {
             config = JSON.parse(savedConfig);
+            logAction("Démarrage sur config de secours");
         } else {
             config = {
                 switches: [
@@ -40,6 +69,7 @@ fetch('/config.json')
                     { x: 600, y: 100, state: 0, visible: true }
                 ]
             };
+            logAction("Démarrage sur config par défaut");
         }
         renderSwitches();
     });
@@ -53,7 +83,6 @@ function renderSwitches() {
         btn.style.top = sw.y + 'px';
         btn.style.backgroundColor = sw.state === 0 ? "#34c759" : "#ffcc00"; 
         
-        // --- NOUVEAU : Ajout du numéro de 1 à 6 ---
         btn.innerHTML = index + 1;
 
         if (sw.visible === false) {
@@ -66,6 +95,10 @@ function renderSwitches() {
         hideBtn.onpointerdown = (e) => {
             e.stopPropagation(); 
             config.switches[index].visible = config.switches[index].visible === false ? true : false;
+            
+            // Log d'action
+            logAction(config.switches[index].visible ? `Aiguillage ${index + 1} affiché` : `Aiguillage ${index + 1} masqué`);
+            
             renderSwitches();
             saveConfig();
         };
@@ -93,11 +126,15 @@ function handleInteraction(e, index, btn) {
             document.onpointermove = null;
             document.onpointerup = null;
             btn.releasePointerCapture(e.pointerId);
+            
+            logAction(`Aiguillage ${index + 1} déplacé`);
             saveConfig();
         };
     } else {
         config.switches[index].state = config.switches[index].state === 0 ? 1 : 0;
         let mode = config.switches[index].state + 1; 
+        
+        logAction(`Aiguillage ${index + 1} basculé en Mode ${mode}`);
         
         fetch(`/switch?id=${index + 1}&mode=${mode}`).catch(()=>console.log("Mode local uniquement"));
         
@@ -125,11 +162,13 @@ modeBtn.onclick = () => {
         modeBtn.classList.remove('btn-user');
         modeBtn.classList.add('btn-config');
         adminPanel.classList.remove('hidden');
+        logAction("Accès au Mode Configuration");
     } else {
         modeBtn.innerHTML = "🔒 Mode Utilisateur";
         modeBtn.classList.remove('btn-config');
         modeBtn.classList.add('btn-user');
         adminPanel.classList.add('hidden');
+        logAction("Retour au Mode Utilisateur");
     }
 };
 
@@ -153,6 +192,7 @@ bgUpload.addEventListener('change', function(event) {
         fetch('/upload', {
             method: 'POST',
             body: formData
-        }).catch(err => console.error("Erreur upload"));
+        }).then(() => logAction("Nouvelle image de fond téléchargée"))
+          .catch(err => console.error("Erreur upload"));
     }
 }, false);

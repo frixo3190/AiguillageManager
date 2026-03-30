@@ -36,6 +36,15 @@ body {
     transition: background-color 0.3s, transform 0.2s;
 }
 
+/* --- NOUVEAU : Position du bouton d'historique --- */
+#history-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
 .btn-user { background-color: var(--user-mode); }
 .btn-config { background-color: var(--primary); }
 
@@ -63,6 +72,72 @@ body {
     transform: translate(-50%, -10px); 
 }
 
+/* --- NOUVEAU : Design du panneau d'historique --- */
+#history-panel {
+    position: absolute;
+    top: 80px; /* S'affiche sous le bouton */
+    left: 20px;
+    width: 280px;
+    max-height: 60vh;
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+}
+
+#history-panel.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-20px);
+}
+
+#history-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+    color: var(--primary);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 10px;
+}
+
+#history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+/* Scrollbar design pour l'historique */
+#history-list::-webkit-scrollbar {
+    width: 6px;
+}
+#history-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.history-item {
+    font-size: 13px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.history-time {
+    font-size: 10px;
+    color: #888;
+    margin-bottom: 3px;
+}
+/* ------------------------------------------------ */
+
 .btn {
     color: white;
     border: none;
@@ -79,6 +154,7 @@ body {
 .btn-secondary {
     background: rgba(255, 255, 255, 0.1);
     box-shadow: none;
+    border: 1px solid rgba(255,255,255,0.2); /* Ajout d'une petite bordure pour faire ressortir le bouton */
 }
 
 .switch {
@@ -93,8 +169,6 @@ body {
     cursor: pointer;
     transition: transform 0.1s, box-shadow 0.2s;
     transform: translate(-50%, -50%);
-    
-    /* --- NOUVEAU : Centrage et style du numéro --- */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -135,7 +209,7 @@ body {
 }
 
 .editing .switch.hidden-switch {
-    display: flex; /* Remis en flex au lieu de block pour garder le numéro centré */
+    display: flex; 
     opacity: 0.3;   
     filter: grayscale(100%);
 }
