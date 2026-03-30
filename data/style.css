@@ -1,0 +1,162 @@
+:root {
+    --primary: #0a84ff; 
+    --user-mode: #ff3b30; 
+    --surface: rgba(40, 40, 40, 0.85);
+    --text: #ffffff;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #121212;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    user-select: none;
+    touch-action: none; 
+}
+
+#layout-map {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background-image: url('fond.jpg'); 
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: filter 0.3s ease;
+}
+
+#layout-map.editing { filter: brightness(0.7); }
+
+#mode-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.btn-user { background-color: var(--user-mode); }
+.btn-config { background-color: var(--primary); }
+
+#admin-panel {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 12px 20px;
+    border-radius: 30px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    transition: opacity 0.3s, visibility 0.3s, transform 0.3s; 
+}
+
+#admin-panel.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -10px); 
+}
+
+.btn {
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active { transform: scale(0.95); }
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+}
+
+.switch {
+    position: absolute;
+    width: 60px;  
+    height: 60px;
+    border-radius: 50%;
+    background-size: cover;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    transform: translate(-50%, -50%);
+    
+    /* --- NOUVEAU : Centrage et style du numéro --- */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.switch:active {
+    transform: translate(-50%, -50%) scale(0.85);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+}
+
+.editing .switch {
+    border: 3px solid #ff3b30;
+    animation: pulse 2s infinite;
+}
+
+#footer-frixo {
+    position: absolute;
+    bottom: 10px;
+    left: 15px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4); 
+    z-index: 1000;
+    pointer-events: none; 
+}
+
+.switch.hidden-switch {
+    display: none; 
+}
+
+.editing .switch.hidden-switch {
+    display: flex; /* Remis en flex au lieu de block pour garder le numéro centré */
+    opacity: 0.3;   
+    filter: grayscale(100%);
+}
+
+.hide-btn {
+    display: none;
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    font-size: 12px;
+    text-align: center;
+    line-height: 25px;
+    cursor: pointer;
+    pointer-events: auto; 
+}
+
+.editing .hide-btn {
+    display: block; 
+}
