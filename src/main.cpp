@@ -4,13 +4,23 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
+#include <NmraDcc.h>
 
 const char* ssid = "TON_NOM_DE_WIFI";
 const char* password = "TON_MOT_DE_PASSE";
 
 AsyncWebServer server(80);
 
+NmraDcc Dcc;
+
+#define DCC_PIN 16
+#define DCC_SIGNAL_TIMEOUT 3000
+
 unsigned long pinTimers[40] = {0};
+int switchStates[6] = {0};
+AsyncEventSource * events;
+unsigned long lastDccSignal = 0;
+bool signalPresent = true;
 
 const int pinsAiguillages[6][2] = {
   {26, 17}, 
@@ -20,6 +30,58 @@ const int pinsAiguillages[6][2] = {
   {27, 32}, 
   {33, 14}  
 };
+
+void notifyDccMsg(DCC_MSG * msg) {
+  lastDccSignal = millis();
+  if (!signalPresent) {
+    signalPresent = true;
+    events->send("event: dcc-signal\ndata: {\"present\":true}", 1000);
+  }
+  
+  if (msg->Size >= 3) {
+    uint16_t addr = (msg->Data[0] << 8) | msg->Data[1];
+    uint8_t cmd = msg->Data[2];
+    
+    if (addr >= 1 && addr <= 6) {
+      int switchId = addr - 1;
+      
+      if ((cmd & 0x10) == 0x10) {
+        int mode = (cmd & 0x01) + 1;
+        int pinIndex = mode - 1;
+        int pinToPulse = pinsAiguillages[switchId][pinIndex];
+        
+        Serial.println("DCC: Aiguillage " + String(addr) + " mode " + String(mode));
+        
+        switchStates[switchId] = mode - 1;
+        
+        digitalWrite(pinToPulse, HIGH);
+        pinTimers[pinToPulse] = millis();
+        if (pinTimers[pinToPulse] == 0) pinTimers[pinToPulse] = 1;
+        
+        char sseData[128];
+        snprintf(sseData, sizeof(sseData), "event: dcc-switch\ndata: {\"id\":%d,\"state\":%d,\"source\":\"dcc\"}", switchId, switchStates[switchId]);
+        events->send(sseData);
+      }
+    }
+  }
+}
+
+void notifyDccSpeed(uint16_t addr, DCC_ADDR_TYPE addrType, uint8_t speed, DCC_DIRECTION dir, DCC_SPEED_STEPS speedSteps) {
+  lastDccSignal = millis();
+  if (!signalPresent) {
+    signalPresent = true;
+    events->send("event: dcc-signal\ndata: {\"present\":true}", 1000);
+  }
+  
+  if (speed == DCC_SPEED_EMERGENCY_STOP) {
+    Serial.println("DCC: ARRET D'URGENCE - Loc " + String(addr));
+    events->send("event: emergency-stop\ndata: {\"active\":true}", 1000);
+  }
+}
+
+void notifyDccNormalOperation(uint16_t addr, DCC_ADDR_TYPE addrType) {
+  events->send("event: emergency-stop\ndata: {\"active\":false}", 1000);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -69,6 +131,17 @@ void setup() {
     Serial.println("Aucun fichier config.json, passage avec les valeurs par defaut.");
   }
   // -------------------------------------------------------
+
+  Dcc.pin(DCC_PIN, 0);
+  Dcc.init(MAN_ID_DIY, 10, FLAGS_DCC_ACCESSORY_DECODER, 0);
+
+  lastDccSignal = millis();
+
+  events = new AsyncEventSource("/events");
+  events->onConnect([](AsyncEventSourceClient * client) {
+    client->send("connected", NULL, millis(), 1000);
+  });
+  server.addHandler(events);
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -121,6 +194,13 @@ void setup() {
 }
 
 void loop() {
+  Dcc.process();
+  
+  if (signalPresent && (millis() - lastDccSignal >= DCC_SIGNAL_TIMEOUT)) {
+    signalPresent = false;
+    events->send("event: dcc-signal\ndata: {\"present\":false}", 1000);
+  }
+  
   for (int i = 0; i < 40; i++) {
     if (pinTimers[i] > 0 && (millis() - pinTimers[i] >= 500)) {
       digitalWrite(i, LOW); 

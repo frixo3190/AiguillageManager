@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="signal-indicator" class="signal-ok"><span class="signal-dot"></span><span class="signal-text">DCC OK</span></div>
+    
     <button id="history-btn" class="btn btn-secondary">📜 Historique</button>
 
     <button id="mode-btn" class="btn btn-user">🔒 Mode Utilisateur</button>
@@ -18,7 +20,7 @@
     </div>
 
     <div id="admin-panel" class="hidden">
-        <label for="bg-upload" class="btn btn-secondary">🖼️ Changer le plan</label>
+        <label for="bg-upload" class="btn btn-small btn-secondary">🖼️ Plan</label>
         <input type="file" id="bg-upload" accept="image/*" style="display: none;">
     </div>
 
@@ -26,6 +28,14 @@
         </div>
 
     <div id="footer-frixo">Gestion aiguillage - By Frixo - v1.4</div>
+
+    <div id="emergency-overlay" class="hidden">
+        <div class="emergency-content">
+            <div class="emergency-icon">⚠️</div>
+            <div class="emergency-text">ARRÊT D'URGENCE</div>
+            <div class="emergency-sub">Signal DCC d'urgence reçu</div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
