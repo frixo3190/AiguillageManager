@@ -5,9 +5,10 @@
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
 #include <NmraDcc.h>
+#include "secrets.h"
 
-const char* ssid = "TON_NOM_DE_WIFI";
-const char* password = "TON_MOT_DE_PASSE";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 AsyncWebServer server(80);
 
@@ -35,7 +36,7 @@ void notifyDccMsg(DCC_MSG * msg) {
   lastDccSignal = millis();
   if (!signalPresent) {
     signalPresent = true;
-    events->send("event: dcc-signal\ndata: {\"present\":true}", 1000);
+    events->send("event: dcc-signal\ndata: {\"present\":true}", NULL, 0, 1000);
   }
   
   if (msg->Size >= 3) {
@@ -70,17 +71,17 @@ void notifyDccSpeed(uint16_t addr, DCC_ADDR_TYPE addrType, uint8_t speed, DCC_DI
   lastDccSignal = millis();
   if (!signalPresent) {
     signalPresent = true;
-    events->send("event: dcc-signal\ndata: {\"present\":true}", 1000);
+    events->send("event: dcc-signal\ndata: {\"present\":true}", NULL, 0, 1000);
   }
   
-  if (speed == DCC_SPEED_EMERGENCY_STOP) {
+  if (speed == 1) {
     Serial.println("DCC: ARRET D'URGENCE - Loc " + String(addr));
-    events->send("event: emergency-stop\ndata: {\"active\":true}", 1000);
+    events->send("event: emergency-stop\ndata: {\"active\":true}", NULL, 0, 1000);
   }
 }
 
 void notifyDccNormalOperation(uint16_t addr, DCC_ADDR_TYPE addrType) {
-  events->send("event: emergency-stop\ndata: {\"active\":false}", 1000);
+  events->send("event: emergency-stop\ndata: {\"active\":false}", NULL, 0, 1000);
 }
 
 void setup() {
@@ -143,6 +144,7 @@ void setup() {
   });
   server.addHandler(events);
 
+  WiFi.setHostname("AiguillageManager");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -150,10 +152,10 @@ void setup() {
   }
   Serial.println("\nConnecté ! IP: " + WiFi.localIP().toString());
 
-  if (!MDNS.begin("aiguillage")) {
+  if (!MDNS.begin("AiguillageManager")) {
     Serial.println("Erreur mDNS");
   } else {
-    Serial.println("Alias mDNS démarré (http://aiguillage.local)");
+    Serial.println("Alias mDNS démarré (http://AiguillageManager.local)");
   }
 
   server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
@@ -198,7 +200,7 @@ void loop() {
   
   if (signalPresent && (millis() - lastDccSignal >= DCC_SIGNAL_TIMEOUT)) {
     signalPresent = false;
-    events->send("event: dcc-signal\ndata: {\"present\":false}", 1000);
+    events->send("event: dcc-signal\ndata: {\"present\":false}", NULL, 0, 1000);
   }
   
   for (int i = 0; i < 40; i++) {
