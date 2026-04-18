@@ -192,6 +192,31 @@ void setup() {
       }
   });
 
+  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", "OK");
+  }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    static File uploadFile;
+    if (!index) {
+      uploadFile = LittleFS.open("/fond.jpg", "w");
+      Serial.println("Opening file for upload");
+    }
+    if (uploadFile) {
+      uploadFile.write(data, len);
+    }
+    if (final) {
+      uploadFile.close();
+      Serial.println("Upload complete");
+    }
+  });
+  
+  server.on("/fond.jpg", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (LittleFS.exists("/fond.jpg")) {
+      request->send(LittleFS, "/fond.jpg", "image/jpeg");
+    } else {
+      request->send(404, "text/plain", "Not found");
+    }
+  });
+
   server.begin();
 }
 
