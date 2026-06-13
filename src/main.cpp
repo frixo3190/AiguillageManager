@@ -148,16 +148,28 @@ void setup() {
 
   WiFi.setHostname("AiguillageManager");
   WiFi.begin(ssid, password);
+  Serial.print("Connexion a ");
+  Serial.print(ssid);
+  int wifiAttempts = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.print(".");
+    wifiAttempts++;
+    if (wifiAttempts >= 20) {
+      Serial.println("\nEchec connexion " + String(ssid) + " (20s), nouvelle tentative...");
+      WiFi.disconnect();
+      WiFi.begin(ssid, password);
+      wifiAttempts = 0;
+    }
   }
-  Serial.println("\nConnecté ! IP: " + WiFi.localIP().toString());
+  Serial.println("\nConnecte ! IP: " + WiFi.localIP().toString());
 
-  if (!MDNS.begin("AiguillageManager")) {
-    Serial.println("Erreur mDNS");
-  } else {
-    Serial.println("Alias mDNS démarré (http://AiguillageManager.local)");
+  if (WiFi.status() == WL_CONNECTED) {
+    if (MDNS.begin("AiguillageManager")) {
+      Serial.println("Alias mDNS démarré (http://AiguillageManager.local)");
+    } else {
+      Serial.println("Erreur mDNS");
+    }
   }
 
   server.on("/switch", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -178,8 +190,9 @@ void setup() {
 
         switchStates[id - 1] = mode - 1;
 
-        char jsonBuf[100];
-        snprintf(jsonBuf, sizeof(jsonBuf), "{\"id\":%d,\"state\":%d,\"source\":\"web\"}", id - 1, mode - 1);
+        String user = request->hasParam("user") ? request->getParam("user")->value() : "";
+        char jsonBuf[200];
+        snprintf(jsonBuf, sizeof(jsonBuf), "{\"id\":%d,\"state\":%d,\"source\":\"web\",\"user\":\"%s\"}", id - 1, mode - 1, user.c_str());
         events->send(jsonBuf, "dcc-switch");
       }
     }
@@ -193,7 +206,8 @@ void setup() {
         file.write(data, len);
         file.close();
         String saveId = request->hasParam("_save") ? request->getParam("_save")->value() : "";
-        String sseMsg = "{\"_save\":\"" + saveId + "\"}";
+        String saveUser = request->hasParam("_user") ? request->getParam("_user")->value() : "";
+        String sseMsg = "{\"_save\":\"" + saveId + "\",\"_user\":\"" + saveUser + "\"}";
         events->send(sseMsg.c_str(), "config-update");
         request->send(200, "text/plain", "OK");
       } else {

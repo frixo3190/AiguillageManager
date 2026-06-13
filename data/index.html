@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="icone.png">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link rel="stylesheet" href="style.css">
+    <script>document.querySelector('link[href="style.css"]').href += '?t=' + Date.now()</script>
 </head>
 <body>
     <div id="signal-indicator" class="signal-ok"><span class="signal-dot"></span><span class="signal-text">DCC OK</span></div>
@@ -37,7 +38,13 @@
                 <button data-zoom="8">×8</button>
                 <button data-zoom="10">×10</button>
                 <button data-zoom="1" class="zoom-off">Rétablir</button>
-                <button id="zoom-free">🔓 Zoom libre</button>
+                <button id="zoom-free"><span class="zoom-free-icon">🔓</span> Zoom libre</button>
+            </div>
+        </div>
+        <div id="user-wrapper">
+            <button id="user-btn" class="btn btn-secondary">👤</button>
+            <div id="user-menu" class="hidden">
+                <button id="logout-btn">🚪 Se déconnecter</button>
             </div>
         </div>
         <button id="mode-btn" class="btn btn-user">🔒 Mode Utilisateur</button>
@@ -81,14 +88,22 @@
     </div>
 
     <div id="admin-panel" class="hidden">
-        <button id="plan-btn" class="btn btn-small btn-secondary">🖼️ Gestion du plan</button>
+        <button id="plan-btn" class="btn btn-secondary">🖼️ Gestion du plan</button>
         <div id="plan-menu" class="hidden">
             <button id="plan-upload">📁 Upload</button>
             <button id="plan-photo">📷 Photo</button>
             <button id="plan-delete">🗑️ Supprimer le plan</button>
         </div>
+        <div id="other-wrapper">
+            <button id="other-btn" class="btn btn-secondary">⚙️ Autre</button>
+            <div id="other-menu" class="hidden">
+                <button id="export-btn">📥 Exporter la config</button>
+                <button id="import-btn">📤 Importer la config</button>
+            </div>
+        </div>
         <input type="file" id="bg-upload" accept="image/*" style="display: none;">
         <input type="file" id="bg-camera" accept="image/*" capture="environment" style="display: none;">
+        <input type="file" id="import-file" accept=".json" style="display: none;">
     </div>
 
     <div id="upload-modal" class="modal-overlay hidden">
@@ -107,7 +122,17 @@
         </div>
     </div>
 
-    <div id="footer-frixo">Gestion aiguillage - By Frixo - v1.14</div>
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="login-icon">🚂</div>
+            <h2>Qui utilise le gestionnaire ?</h2>
+            <input type="text" id="login-input" placeholder="Votre nom..." maxlength="30" autocomplete="off">
+            <div id="login-suggestions"></div>
+            <button id="login-btn" class="btn btn-secondary">Continuer</button>
+        </div>
+    </div>
+
+    <div id="footer-frixo">Gestion aiguillage - By Frixo - v1.15</div>
 
     <div id="orientation-overlay" class="hidden">
         <div class="orientation-content">
@@ -125,6 +150,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>document.write('<script src="script.js?t=' + Date.now() + '"><\/script>')</script>
 </body>
 </html>

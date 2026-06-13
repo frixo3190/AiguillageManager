@@ -1,6 +1,7 @@
 let isEditing = false;
 let config = { switches: [] };
 let eventSource = null;
+let userName = '';
 
 const map = document.getElementById('layout-map');
 const switchesContainer = document.getElementById('switches-container');
@@ -11,6 +12,76 @@ const planMenu = document.getElementById('plan-menu');
 const planDelete = document.getElementById('plan-delete');
 const bgUpload = document.getElementById('bg-upload');
 const bgCamera = document.getElementById('bg-camera');
+
+// --- LOGIN MODAL ---
+const loginOverlay = document.getElementById('login-overlay');
+const loginInput = document.getElementById('login-input');
+const loginSuggestions = document.getElementById('login-suggestions');
+const loginBtn = document.getElementById('login-btn');
+const userBtn = document.getElementById('user-btn');
+const userMenu = document.getElementById('user-menu');
+
+function getSavedUsers() {
+    try { return JSON.parse(localStorage.getItem('trainUsers') || '[]'); } catch { return []; }
+}
+
+function saveUser(name) {
+    if (!name.trim()) return;
+    let users = getSavedUsers().filter(u => u !== name.trim());
+    users.unshift(name.trim());
+    if (users.length > 6) users = users.slice(0, 6);
+    try { localStorage.setItem('trainUsers', JSON.stringify(users)); } catch {}
+}
+
+function renderSuggestions() {
+    loginSuggestions.innerHTML = '';
+    getSavedUsers().forEach(name => {
+        const chip = document.createElement('div');
+        chip.className = 'login-suggestion';
+        chip.textContent = name;
+        chip.onclick = () => { loginInput.value = name; doLogin(); };
+        loginSuggestions.appendChild(chip);
+    });
+}
+
+function doLogin() {
+    const name = loginInput.value.trim();
+    if (!name) return;
+    setUserName(name);
+    saveUser(name);
+    loginOverlay.style.animation = 'login-fade-out 0.3s ease-in forwards';
+    setTimeout(() => {
+        loginOverlay.style.display = 'none';
+        startApp();
+    }, 300);
+}
+
+loginBtn.onclick = doLogin;
+loginInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+loginInput.focus();
+renderSuggestions();
+
+userBtn.onclick = (e) => {
+    e.stopPropagation();
+    userMenu.classList.toggle('hidden');
+};
+
+document.addEventListener('click', () => userMenu.classList.add('hidden'));
+
+document.getElementById('logout-btn').onclick = () => {
+    userMenu.classList.add('hidden');
+    userName = '';
+    loginInput.value = '';
+    if (typeof startApp !== 'undefined') {
+        location.reload();
+    }
+};
+
+function setUserName(name) {
+    userName = name;
+    userBtn.textContent = name;
+}
+// --------------------
 
 planBtn.onclick = (e) => {
     e.stopPropagation();
@@ -30,6 +101,71 @@ planDelete.onclick = () => {
     logAction("🗑️ Plan de fond supprimé");
     fetch('/delete-plan').catch(()=>{});
 };
+
+const otherBtn = document.getElementById('other-btn');
+const otherMenu = document.getElementById('other-menu');
+
+otherBtn.onclick = (e) => {
+    e.stopPropagation();
+    otherMenu.classList.toggle('hidden');
+};
+
+document.getElementById('export-btn').onclick = () => {
+    otherMenu.classList.add('hidden');
+    const data = JSON.stringify(config, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aiguillage_config.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    logAction("📥 Configuration exportée");
+};
+
+document.getElementById('import-btn').onclick = () => {
+    otherMenu.classList.add('hidden');
+    document.getElementById('import-file').click();
+};
+
+document.getElementById('import-file').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    this.value = '';
+    uploadModal.classList.remove('hidden');
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.switches || !Array.isArray(data.switches)) {
+                throw new Error("Format invalide");
+            }
+            config = data;
+            fetch('/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            }).then(r => r.text()).then(text => {
+                if (text === "OK") {
+                    logAction("📤 Configuration importée avec succès");
+                } else {
+                    logAction("⚠ Erreur lors de l'import");
+                }
+                uploadModal.classList.add('hidden');
+                renderSwitches();
+            }).catch(() => {
+                uploadModal.classList.add('hidden');
+                errorText.textContent = "Erreur de communication avec l'ESP32";
+                errorModal.classList.remove('hidden');
+            });
+        } catch (err) {
+            uploadModal.classList.add('hidden');
+            errorText.textContent = "Erreur : fichier de configuration invalide";
+            errorModal.classList.remove('hidden');
+        }
+    };
+    reader.readAsText(file);
+});
 
 // --- NOUVEAU : Éléments de l'historique ---
 const historyBtn = document.getElementById('history-btn');
@@ -68,7 +204,7 @@ const zoomTabs = document.getElementById('zoom-tabs');
 zoomBtn.onclick = () => zoomPicker.classList.toggle('hidden');
 
 let freeZoomActive = false;
-let lastSaveId = null;
+let pendingSaveIds = [];
 let freeZoomScale = 1;
 let freeZoomX = 0, freeZoomY = 0;
 let lastTouchDist = 0;
@@ -212,7 +348,7 @@ function renderZoomTabs() {
             config.switches[index].state = config.switches[index].state === 0 ? 1 : 0;
             let mode = config.switches[index].state + 1;
             logAction(`Aiguillage ${index + 1} basculé en Mode ${mode} (zoom)`);
-            fetch(`/switch?id=${index + 1}&mode=${mode}`).catch(()=>{});
+            fetch(`/switch?id=${index + 1}&mode=${mode}&user=${encodeURIComponent(userName)}`).catch(()=>{});
             updateSwitchAppearance(index);
             saveConfig();
         };
@@ -291,7 +427,7 @@ function initEventSource() {
     eventSource.addEventListener('dcc-switch', (e) => {
         try {
             const data = JSON.parse(e.data);
-            handleDccSwitch(data.id, data.state, data.source);
+            handleDccSwitch(data.id, data.state, data.source, data.user || '');
         } catch (err) {
             console.error('SSE parse error:', err);
         }
@@ -300,9 +436,16 @@ function initEventSource() {
     eventSource.addEventListener('config-update', (e) => {
         try {
             const d = JSON.parse(e.data);
-            if (d._save && d._save === lastSaveId) return;
-        } catch (_) {}
-        logAction("🔄 Configuration mise à jour par un autre utilisateur");
+            if (d._save && pendingSaveIds.includes(d._save)) return;
+            if (d._user && d._user === userName) return;
+            if (d._user) {
+                logAction(`👤 ${d._user} a modifié la configuration`);
+            } else if (!d._user) {
+                logAction("🔄 Configuration mise à jour par un autre utilisateur");
+            }
+        } catch (_) {
+            logAction("🔄 Configuration mise à jour par un autre utilisateur");
+        }
         fetch('/config.json')
             .then(r => r.json())
             .then(data => {
@@ -363,14 +506,14 @@ function updateSwitchAppearance(index) {
     }
 }
 
-function handleDccSwitch(switchId, state, source) {
+function handleDccSwitch(switchId, state, source, user) {
     if (config.switches[switchId].state === state) return;
 
     config.switches[switchId].state = state;
     updateSwitchAppearance(switchId);
 
     if (source === 'web') {
-        logAction(`⇄ Aiguillage ${switchId + 1} → Mode ${state + 1} (sync)`);
+        logAction(`⇄ ${user || 'Inconnu'} a basculé l'aiguillage ${switchId + 1} en Mode ${state + 1}`);
     } else {
         logAction(`⚡ Aiguillage ${switchId + 1} basculé en Mode ${state + 1} (DCC)`);
     }
@@ -378,6 +521,8 @@ function handleDccSwitch(switchId, state, source) {
     saveConfig();
 }
 
+function startApp() {
+setUserName(userName);
 const emergencyOverlay = document.getElementById('emergency-overlay');
 const signalIndicator = document.getElementById('signal-indicator');
 
@@ -398,9 +543,6 @@ fetch('/config.json')
     })
     .then(data => {
         config = data;
-        const sw = config.switches[0];
-        const posInfo = sw ? `pos:${Math.round(sw.xPercent||0)}%,${Math.round(sw.yPercent||0)}%` : 'pas de sw';
-        logAction(`✓ config ESP32 chargée - ${posInfo}`);
         renderSwitches();
         initEventSource();
     })
@@ -461,7 +603,6 @@ switchMenu.querySelectorAll('[data-size]').forEach(btn => {
 function renderSwitches() {
     closeSwitchMenu();
     switchesContainer.innerHTML = ''; 
-    const mapSize = getMapSize();
     config.switches.forEach((sw, index) => {
         let btn = document.createElement('div');
         btn.className = 'switch';
@@ -471,14 +612,6 @@ function renderSwitches() {
 
         if (sw.visible === false) {
             btn.classList.add('hidden-switch');
-        }
-
-        if (sw.xPercent !== undefined && mapSize.width > 0) {
-            btn.style.left = `${(sw.xPercent / 100) * mapSize.width}px`;
-            btn.style.top = `${(sw.yPercent / 100) * mapSize.height}px`;
-        } else if (sw.x !== undefined) {
-            btn.style.left = `${sw.x}px`;
-            btn.style.top = `${sw.y}px`;
         }
 
         let hideBtn = document.createElement('div');
@@ -547,45 +680,52 @@ function handleInteraction(e, index, btn) {
     e.preventDefault(); 
     
     if (isEditing) {
+        const startX = e.clientX, startY = e.clientY;
+        let moved = false;
         let longPress = setTimeout(() => {
-            document.onpointermove = null;
-            document.onpointerup = null;
-            btn.releasePointerCapture(e.pointerId);
-            btn.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, clientX: e.clientX, clientY: e.clientY }));
-        }, 500);
+            if (!moved) {
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+                btn.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, clientX: startX, clientY: startY }));
+            }
+        }, 800);
 
-        btn.setPointerCapture(e.pointerId);
-        document.onpointermove = (eMove) => {
-            if (Math.abs(eMove.clientX - e.clientX) > 10 || Math.abs(eMove.clientY - e.clientY) > 10) {
+        function onMove(eMove) {
+            if (Math.abs(eMove.clientX - startX) > 8 || Math.abs(eMove.clientY - startY) > 8) {
+                moved = true;
                 if (longPress) { clearTimeout(longPress); longPress = null; }
             }
+            if (!moved) return;
+            eMove.preventDefault();
             let newX = eMove.clientX - map.getBoundingClientRect().left;
             let newY = eMove.clientY - map.getBoundingClientRect().top;
+            if (newY < 30) newY = 30;
             btn.style.left = newX + 'px';
             btn.style.top = newY + 'px';
             config.switches[index].x = newX;
             config.switches[index].y = newY;
-        };
-        document.onpointerup = () => {
+        }
+
+        function onUp() {
             if (longPress) { clearTimeout(longPress); longPress = null; }
-            document.onpointermove = null;
-            document.onpointerup = null;
-            btn.releasePointerCapture(e.pointerId);
-            
-            const mapSize = getMapSize();
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            if (!moved) return;
             config.switches[index].x = parseFloat(btn.style.left);
             config.switches[index].y = parseFloat(btn.style.top);
-            
             logAction(`Aiguillage ${index + 1} déplacé`);
-            savePositions();
-        };
+            savePositions(index);
+        }
+
+        document.addEventListener('pointermove', onMove, { passive: false });
+        document.addEventListener('pointerup', onUp);
     } else {
         config.switches[index].state = config.switches[index].state === 0 ? 1 : 0;
         let mode = config.switches[index].state + 1; 
         
         logAction(`Aiguillage ${index + 1} basculé en Mode ${mode}`);
         
-        fetch(`/switch?id=${index + 1}&mode=${mode}`).catch(()=>console.log("Mode local uniquement"));
+        fetch(`/switch?id=${index + 1}&mode=${mode}&user=${encodeURIComponent(userName)}`).catch(()=>console.log("Mode local uniquement"));
         
         updateSwitchAppearance(index);
         saveConfig();
@@ -597,21 +737,21 @@ function getMapSize() {
     return { width: rect.width, height: rect.height };
 }
 
-function savePositions() {
+function savePositions(movedIndex) {
     const mapSize = getMapSize();
-    config.switches.forEach((sw, i) => {
-        if (mapSize.width > 0 && mapSize.height > 0) {
-            sw.xPercent = (sw.x / mapSize.width) * 100;
-            sw.yPercent = (sw.y / mapSize.height) * 100;
-        }
-    });
+    if (mapSize.width > 0 && mapSize.height > 0 && movedIndex !== undefined) {
+        const sw = config.switches[movedIndex];
+        sw.xPercent = (sw.x / mapSize.width) * 100;
+        sw.yPercent = (sw.y / mapSize.height) * 100;
+    }
     saveConfig();
 }
 
 function saveConfig() {
     const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-    lastSaveId = id;
-    fetch('/save?_save=' + id, {
+    pendingSaveIds.push(id);
+    setTimeout(() => { pendingSaveIds = pendingSaveIds.filter(s => s !== id); }, 5000);
+    fetch('/save?_save=' + id + '&_user=' + encodeURIComponent(userName), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
@@ -620,46 +760,21 @@ function saveConfig() {
 
 function updateSwitchPositions() {
     if (config.switches.length === 0) return;
-    
-    const bgImg = new Image();
-    bgImg.src = map.style.backgroundImage.replace(/url\(['"]?(.+?)['"]?\)/, '$1');
-    
-    if (!bgImg.complete || bgImg.naturalWidth === 0) {
-        const mapSize = getMapSize();
-        config.switches.forEach((sw, i) => {
-const btn = switchesContainer.querySelector(`.switch:nth-child(${i + 1})`);
-        if (btn && sw.xPercent !== undefined && sw.yPercent !== undefined && mapSize.width > 0 && mapSize.height > 0) {
-            btn.style.left = `${(sw.xPercent / 100) * mapSize.width}px`;
-            btn.style.top = `${(sw.yPercent / 100) * mapSize.height}px`;
-            }
-        });
-        return;
-    }
-    
-    const rect = map.getBoundingClientRect();
-    const imgRatio = bgImg.naturalWidth / bgImg.naturalHeight;
-    const containerRatio = rect.width / rect.height;
-    
-    let visibleWidth, visibleHeight;
-    if (imgRatio > containerRatio) {
-        visibleWidth = rect.width;
-        visibleHeight = rect.width / imgRatio;
-    } else {
-        visibleHeight = rect.height;
-        visibleWidth = rect.height * imgRatio;
-    }
-    
-    const offsetX = (rect.width - visibleWidth) / 2;
-    const offsetY = (rect.height - visibleHeight) / 2;
-    
+
+    const mapSize = getMapSize();
+    if (mapSize.width <= 0 || mapSize.height <= 0) return;
+
     config.switches.forEach((sw, i) => {
         const btn = switchesContainer.querySelector(`.switch:nth-child(${i + 1})`);
-        if (btn && sw.xPercent !== undefined && sw.yPercent !== undefined) {
-            const newLeft = offsetX + (sw.xPercent / 100) * visibleWidth;
-            const newTop = offsetY + (sw.yPercent / 100) * visibleHeight;
-            btn.style.left = `${newLeft}px`;
-            btn.style.top = `${newTop}px`;
+        if (!btn) return;
+        let pctX = sw.xPercent, pctY = sw.yPercent;
+        if (pctX === undefined && sw.x !== undefined) {
+            pctX = (sw.x / mapSize.width) * 100;
+            pctY = (sw.y / mapSize.height) * 100;
         }
+        if (pctX === undefined) return;
+        btn.style.left = `${(pctX / 100) * mapSize.width}px`;
+        btn.style.top = `${Math.max(30, (pctY / 100) * mapSize.height)}px`;
     });
 }
 
@@ -764,3 +879,5 @@ bgCamera.addEventListener('change', function(event) {
     bgCamera.value = '';
     handleBgFile(file);
 }, false);
+
+}
