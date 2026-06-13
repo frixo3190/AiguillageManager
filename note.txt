@@ -1,0 +1,2 @@
+lancer l'upload littlefs pour les maj web :
+pio run --target uploadfs

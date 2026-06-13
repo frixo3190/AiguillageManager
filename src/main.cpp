@@ -36,7 +36,7 @@ void notifyDccMsg(DCC_MSG * msg) {
   lastDccSignal = millis();
   if (!signalPresent) {
     signalPresent = true;
-    events->send("event: dcc-signal\ndata: {\"present\":true}", NULL, 0, 1000);
+    events->send("{\"present\":true}", "dcc-signal");
   }
   
   if (msg->Size >= 3) {
@@ -59,9 +59,9 @@ void notifyDccMsg(DCC_MSG * msg) {
         pinTimers[pinToPulse] = millis();
         if (pinTimers[pinToPulse] == 0) pinTimers[pinToPulse] = 1;
         
-        char sseData[128];
-        snprintf(sseData, sizeof(sseData), "event: dcc-switch\ndata: {\"id\":%d,\"state\":%d,\"source\":\"dcc\"}", switchId, switchStates[switchId]);
-        events->send(sseData);
+        char jsonBuf[100];
+        snprintf(jsonBuf, sizeof(jsonBuf), "{\"id\":%d,\"state\":%d,\"source\":\"dcc\"}", switchId, switchStates[switchId]);
+        events->send(jsonBuf, "dcc-switch");
       }
     }
   }
@@ -71,17 +71,17 @@ void notifyDccSpeed(uint16_t addr, DCC_ADDR_TYPE addrType, uint8_t speed, DCC_DI
   lastDccSignal = millis();
   if (!signalPresent) {
     signalPresent = true;
-    events->send("event: dcc-signal\ndata: {\"present\":true}", NULL, 0, 1000);
+    events->send("{\"present\":true}", "dcc-signal");
   }
   
   if (speed == 1) {
     Serial.println("DCC: ARRET D'URGENCE - Loc " + String(addr));
-    events->send("event: emergency-stop\ndata: {\"active\":true}", NULL, 0, 1000);
+    events->send("{\"active\":true}", "emergency-stop");
   }
 }
 
 void notifyDccNormalOperation(uint16_t addr, DCC_ADDR_TYPE addrType) {
-  events->send("event: emergency-stop\ndata: {\"active\":false}", NULL, 0, 1000);
+  events->send("{\"active\":false}", "emergency-stop");
 }
 
 void setup() {
@@ -144,6 +144,8 @@ void setup() {
   });
   server.addHandler(events);
 
+  DefaultHeaders::Instance().addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+
   WiFi.setHostname("AiguillageManager");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -157,8 +159,6 @@ void setup() {
   } else {
     Serial.println("Alias mDNS démarré (http://AiguillageManager.local)");
   }
-
-  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
   server.on("/switch", HTTP_GET, [](AsyncWebServerRequest *request){
     if(request->hasParam("id") && request->hasParam("mode")){
@@ -174,7 +174,13 @@ void setup() {
         digitalWrite(pinToPulse, HIGH); 
         
         pinTimers[pinToPulse] = millis(); 
-        if(pinTimers[pinToPulse] == 0) pinTimers[pinToPulse] = 1; 
+        if(pinTimers[pinToPulse] == 0) pinTimers[pinToPulse] = 1;
+
+        switchStates[id - 1] = mode - 1;
+
+        char jsonBuf[100];
+        snprintf(jsonBuf, sizeof(jsonBuf), "{\"id\":%d,\"state\":%d,\"source\":\"web\"}", id - 1, mode - 1);
+        events->send(jsonBuf, "dcc-switch");
       }
     }
     request->send(200, "text/plain", "OK");
@@ -186,36 +192,90 @@ void setup() {
       if (file) {
         file.write(data, len);
         file.close();
+        String saveId = request->hasParam("_save") ? request->getParam("_save")->value() : "";
+        String sseMsg = "{\"_save\":\"" + saveId + "\"}";
+        events->send(sseMsg.c_str(), "config-update");
         request->send(200, "text/plain", "OK");
       } else {
         request->send(500, "text/plain", "Erreur");
       }
   });
 
-  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", "OK");
-  }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    static File uploadFile;
-    if (!index) {
-      uploadFile = LittleFS.open("/fond.jpg", "w");
-      Serial.println("Opening file for upload");
-    }
-    if (uploadFile) {
-      uploadFile.write(data, len);
-    }
-    if (final) {
-      uploadFile.close();
-      Serial.println("Upload complete");
-    }
+  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){},
+    [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+      static File uploadFile;
+      if (!index) {
+        uploadFile = LittleFS.open("/fond.jpg", "w");
+        if (!uploadFile) {
+          Serial.println("Upload: ECHEC ouverture fichier");
+        } else {
+          Serial.println("Upload: ouverture fichier OK");
+        }
+      }
+      if (uploadFile) {
+        uploadFile.write(data, len);
+      }
+      if (final) {
+        if (uploadFile) {
+          uploadFile.close();
+          Serial.println("Upload: termine OK");
+          request->send(200, "text/plain", "OK");
+        } else {
+          request->send(500, "text/plain", "Erreur ecriture fichier");
+        }
+      }
   });
   
-  server.on("/fond.jpg", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (LittleFS.exists("/fond.jpg")) {
-      request->send(LittleFS, "/fond.jpg", "image/jpeg");
+  server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (LittleFS.exists("/config.json")) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/config.json", "application/json");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
     } else {
       request->send(404, "text/plain", "Not found");
     }
   });
+
+  server.on("/fond.jpg", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (!LittleFS.exists("/fond.jpg")) {
+      request->send(404, "text/plain", "Not found");
+      return;
+    }
+    AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/fond.jpg", "image/jpeg");
+    request->send(response);
+  });
+
+  server.on("/icone.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (LittleFS.exists("/icone.png")) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/icone.png", "image/png");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
+    } else {
+      request->send(404, "text/plain", "Not found");
+    }
+  });
+
+  server.on("/manifest.json", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (LittleFS.exists("/manifest.json")) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/manifest.json", "application/json");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      response->addHeader("Pragma", "no-cache");
+      response->addHeader("Expires", "0");
+      request->send(response);
+    } else {
+      request->send(404, "text/plain", "Not found");
+    }
+  });
+
+  server.on("/delete-plan", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (LittleFS.exists("/fond.jpg")) {
+      LittleFS.remove("/fond.jpg");
+      Serial.println("Plan de fond supprimé");
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("no-store");
 
   server.begin();
 }
@@ -225,7 +285,7 @@ void loop() {
   
   if (signalPresent && (millis() - lastDccSignal >= DCC_SIGNAL_TIMEOUT)) {
     signalPresent = false;
-    events->send("event: dcc-signal\ndata: {\"present\":false}", NULL, 0, 1000);
+    events->send("{\"present\":false}", "dcc-signal");
   }
   
   for (int i = 0; i < 40; i++) {

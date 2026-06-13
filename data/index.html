@@ -4,21 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Contrôle du Réseau</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" href="icone.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Aiguillage">
-    <link rel="apple-touch-icon" href="favicon.svg">
+    <link rel="apple-touch-icon" href="icone.png">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="signal-indicator" class="signal-ok"><span class="signal-dot"></span><span class="signal-text">DCC OK</span></div>
-    
+
+    <div id="zoom-layer">
+        <div id="layout-map">
+            </div>
+        
+        <div id="switches-container">
+            </div>
+    </div>
+
     <button id="history-btn" class="btn btn-secondary">📜 Historique</button>
 
-    <button id="mode-btn" class="btn btn-user">🔒 Mode Utilisateur</button>
+    <div id="top-right-group">
+        <div id="zoom-wrapper">
+            <button id="zoom-btn" class="btn btn-secondary">🔍 Zoom</button>
+            <div id="zoom-picker" class="hidden">
+                <button data-zoom="2">×2</button>
+                <button data-zoom="4">×4</button>
+                <button data-zoom="6">×6</button>
+                <button data-zoom="8">×8</button>
+                <button data-zoom="10">×10</button>
+                <button data-zoom="1" class="zoom-off">Rétablir</button>
+                <button id="zoom-free">🔓 Zoom libre</button>
+            </div>
+        </div>
+        <button id="mode-btn" class="btn btn-user">🔒 Mode Utilisateur</button>
+    </div>
+
+    <div id="zoom-tabs" class="hidden"></div>
+
+    <div id="switch-menu" class="hidden">
+        <div class="menu-arrow"></div>
+        <button class="menu-item" data-action="toggle-visibility">
+            <span class="menu-icon material-symbols-outlined">visibility</span>
+            <span class="menu-label">Afficher / Masquer</span>
+        </button>
+        <div class="menu-item" data-action="size">
+            <span class="menu-icon material-symbols-outlined">circle</span>
+            <span class="menu-label">Taille du switch</span>
+            <span class="menu-chevron material-symbols-outlined">chevron_right</span>
+        </div>
+        <div id="size-submenu" class="hidden">
+            <button class="menu-item" data-size="1">
+                <span class="menu-icon material-symbols-outlined">radio_button_unchecked</span>
+                <span class="menu-label">Normal</span>
+            </button>
+            <button class="menu-item" data-size="2">
+                <span class="menu-icon material-symbols-outlined">circle</span>
+                <span class="menu-label">Petit</span>
+            </button>
+            <button class="menu-item" data-size="3">
+                <span class="menu-icon material-symbols-outlined">circle</span>
+                <span class="menu-label">Très petit</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
 
     <div id="history-panel" class="hidden">
         <h3>Historique des actions</h3>
@@ -27,17 +81,41 @@
     </div>
 
     <div id="admin-panel" class="hidden">
-        <label for="bg-upload" class="btn btn-small btn-secondary">🖼️ Plan</label>
+        <button id="plan-btn" class="btn btn-small btn-secondary">🖼️ Gestion du plan</button>
+        <div id="plan-menu" class="hidden">
+            <button id="plan-upload">📁 Upload</button>
+            <button id="plan-photo">📷 Photo</button>
+            <button id="plan-delete">🗑️ Supprimer le plan</button>
+        </div>
         <input type="file" id="bg-upload" accept="image/*" style="display: none;">
+        <input type="file" id="bg-camera" accept="image/*" capture="environment" style="display: none;">
     </div>
 
-    <div id="layout-map">
+    <div id="upload-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-spinner"></div>
+            <p class="modal-text">Traitement du plan…</p>
+            <p class="modal-sub">Compression et téléchargement</p>
         </div>
-    
-    <div id="switches-container">
+    </div>
+
+    <div id="error-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-icon error">✕</div>
+            <p class="modal-text" id="error-text">Erreur inconnue</p>
+            <button id="error-dismiss" class="btn btn-small btn-config">Fermer</button>
         </div>
+    </div>
 
     <div id="footer-frixo">Gestion aiguillage - By Frixo - v1.14</div>
+
+    <div id="orientation-overlay" class="hidden">
+        <div class="orientation-content">
+            <div class="orientation-icon">↻</div>
+            <div class="orientation-text">Mode paysage</div>
+            <div class="orientation-sub">Tournez votre appareil</div>
+        </div>
+    </div>
 
     <div id="emergency-overlay" class="hidden">
         <div class="emergency-content">
