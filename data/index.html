@@ -16,7 +16,7 @@
     <script>document.querySelector('link[href="style.css"]').href += '?t=' + Date.now()</script>
 </head>
 <body>
-    <div id="signal-indicator" class="signal-ok"><span class="signal-dot"></span><span class="signal-text">DCC OK</span></div>
+    <div id="signal-indicator" class="signal-ok"><span class="signal-dot"></span><span class="signal-text">DCC OK</span><span class="signal-chevron material-symbols-outlined">chevron_right</span></div>
 
     <div id="zoom-layer">
         <div id="layout-map">
@@ -58,6 +58,10 @@
             <span class="menu-icon material-symbols-outlined">visibility</span>
             <span class="menu-label">Afficher / Masquer</span>
         </button>
+        <button class="menu-item" data-action="assign-address">
+            <span class="menu-icon material-symbols-outlined">pin</span>
+            <span class="menu-label">Attribuer une adresse d'aiguillage</span>
+        </button>
         <div class="menu-item" data-action="size">
             <span class="menu-icon material-symbols-outlined">circle</span>
             <span class="menu-label">Taille du switch</span>
@@ -82,8 +86,27 @@
     <div id="toast-container"></div>
 
     <div id="history-panel" class="hidden">
-        <h3>Historique des actions</h3>
+        <div class="dcc-log-header">
+            <h3>Historique des actions</h3>
+            <button id="history-clear" class="btn btn-small btn-secondary">Effacer</button>
+        </div>
         <ul id="history-list">
+            </ul>
+    </div>
+
+    <div id="dcc-log-panel" class="hidden">
+        <div class="dcc-log-header">
+            <h3>Commandes DCC reçues (depuis la centrale/Télécommande)</h3>
+            <button id="dcc-log-clear" class="btn btn-small btn-secondary">Effacer</button>
+        </div>
+        <div class="dcc-log-filter">
+            <label class="toggle-label">
+                <span class="toggle-text">Afficher que les commandes d'aiguillages</span>
+                <input type="checkbox" id="dcc-log-filter-switch">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <ul id="dcc-log-list">
             </ul>
     </div>
 
@@ -122,6 +145,19 @@
         </div>
     </div>
 
+    <div id="address-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-icon">🎯</div>
+            <p class="modal-text">Attribuer une adresse DCC</p>
+            <p class="modal-sub">Adresse d'aiguillage (1-99)</p>
+            <input type="number" id="address-input" class="modal-input" min="1" max="99" placeholder="Ex: 5">
+            <div class="modal-actions">
+                <button id="address-cancel" class="btn btn-small btn-secondary">Annuler</button>
+                <button id="address-validate" class="btn btn-small btn-config">Valider</button>
+            </div>
+        </div>
+    </div>
+
     <div id="login-overlay">
         <div class="login-card">
             <div class="login-icon">🚂</div>
@@ -147,6 +183,14 @@
             <div class="emergency-icon">⚠️</div>
             <div class="emergency-text">ARRÊT D'URGENCE</div>
             <div class="emergency-sub">Signal DCC d'urgence reçu</div>
+        </div>
+    </div>
+
+    <div id="reconnect-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-spinner"></div>
+            <p class="modal-text">ESP non joignable</p>
+            <p class="modal-sub">Tentative de reconnexion…</p>
         </div>
     </div>
 

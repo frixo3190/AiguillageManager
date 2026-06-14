@@ -2,6 +2,20 @@ let isEditing = false;
 let config = { switches: [] };
 let eventSource = null;
 let userName = '';
+let dccLogEnabled = false;
+function logdcc(enabled) { dccLogEnabled = enabled; }
+function logPin(enabled) {
+    fetch('/dccpinlog?on=' + (enabled ? 1 : 0))
+        .then(r => r.text())
+        .then(t => console.log('[logPin] ESP repond:', t))
+        .catch(e => console.error('[logPin] Erreur ESP:', e));
+}
+function help() {
+    console.log('%c AiguillageManager - Commandes disponibles', 'font-size:14px;font-weight:700;color:#0a84ff');
+    console.log('  %clogdcc(true/false)%c  →  Log DCC brut dans la console', 'color:#ffcc00', 'color:#888');
+    console.log('  %clogPin(true/false)%c  →  Log changements d\'état pin DCC', 'color:#ffcc00', 'color:#888');
+    console.log('  %chelp()%c              →  Affiche cette aide', 'color:#ffcc00', 'color:#888');
+}
 
 const map = document.getElementById('layout-map');
 const switchesContainer = document.getElementById('switches-container');
@@ -14,6 +28,8 @@ const bgUpload = document.getElementById('bg-upload');
 const bgCamera = document.getElementById('bg-camera');
 
 // --- LOGIN MODAL ---
+let dccLogEntries = [];
+
 const loginOverlay = document.getElementById('login-overlay');
 const loginInput = document.getElementById('login-input');
 const loginSuggestions = document.getElementById('login-suggestions');
@@ -79,7 +95,7 @@ document.getElementById('logout-btn').onclick = () => {
 
 function setUserName(name) {
     userName = name;
-    userBtn.textContent = name;
+    userBtn.innerHTML = '👤 ' + name;
 }
 // --------------------
 
@@ -171,11 +187,42 @@ document.getElementById('import-file').addEventListener('change', function(event
 const historyBtn = document.getElementById('history-btn');
 const historyPanel = document.getElementById('history-panel');
 const historyList = document.getElementById('history-list');
+const historyClear = document.getElementById('history-clear');
+historyClear.onclick = () => { historyList.innerHTML = ''; };
+
+const dccLogPanel = document.getElementById('dcc-log-panel');
+const dccLogList = document.getElementById('dcc-log-list');
+const dccLogClear = document.getElementById('dcc-log-clear');
+const dccLogFilter = document.getElementById('dcc-log-filter-switch');
+let dccLogFilterOn = false;
+dccLogFilter.onchange = () => {
+    dccLogFilterOn = dccLogFilter.checked;
+    renderDccLog();
+};
 
 const uploadModal = document.getElementById('upload-modal');
 const errorModal = document.getElementById('error-modal');
 const errorText = document.getElementById('error-text');
 const errorDismiss = document.getElementById('error-dismiss');
+const addressModal = document.getElementById('address-modal');
+const addressInput = document.getElementById('address-input');
+const addressCancel = document.getElementById('address-cancel');
+const addressValidate = document.getElementById('address-validate');
+const emergencyOverlay = document.getElementById('emergency-overlay');
+const signalIndicator = document.getElementById('signal-indicator');
+const reconnectModal = document.getElementById('reconnect-modal');
+
+signalIndicator.onclick = (e) => {
+    e.stopPropagation();
+    dccLogPanel.classList.toggle('hidden');
+    historyPanel.classList.add('hidden');
+    if (!dccLogPanel.classList.contains('hidden')) renderDccLog();
+};
+
+dccLogClear.onclick = () => {
+    dccLogEntries = [];
+    dccLogList.innerHTML = '';
+};
 
 errorDismiss.onclick = () => errorModal.classList.add('hidden');
 
@@ -347,7 +394,8 @@ function renderZoomTabs() {
             e.stopPropagation();
             config.switches[index].state = config.switches[index].state === 0 ? 1 : 0;
             let mode = config.switches[index].state + 1;
-            logAction(`Aiguillage ${index + 1} basculé en Mode ${mode} (zoom)`);
+            let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
+            logAction(`Aiguillage ${index + 1} basculé en ${modeLabel} (zoom)`);
             fetch(`/switch?id=${index + 1}&mode=${mode}&user=${encodeURIComponent(userName)}`).catch(()=>{});
             updateSwitchAppearance(index);
             saveConfig();
@@ -386,7 +434,7 @@ function showToast(message) {
 }
 
 // Fonction pour ajouter un message à l'historique
-function logAction(message) {
+function logAction(message, noToast) {
     const now = new Date();
     const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     
@@ -394,20 +442,20 @@ function logAction(message) {
     li.className = 'history-item';
     li.innerHTML = `<span class="history-time">${timeString}</span><span>${message}</span>`;
     
-    historyList.prepend(li); // Ajoute en haut de la liste
+    historyList.prepend(li);
 
-    // On limite à 50 messages pour la fluidité
     if (historyList.children.length > 50) {
         historyList.removeChild(historyList.lastChild);
     }
 
-    showToast(message);
+    if (!noToast) showToast(message);
 }
 
 // Afficher/Cacher le panneau d'historique
 historyBtn.onclick = (e) => {
     e.stopPropagation();
     historyPanel.classList.toggle('hidden');
+    dccLogPanel.classList.add('hidden');
 };
 
 document.addEventListener('click', () => {
@@ -419,78 +467,228 @@ document.addEventListener('click', () => {
 historyPanel.addEventListener('click', (e) => e.stopPropagation());
 // ------------------------------------------
 
-function initEventSource() {
-    if (eventSource) eventSource.close();
-    
-    eventSource = new EventSource('/events');
-    
-    eventSource.addEventListener('dcc-switch', (e) => {
-        try {
-            const data = JSON.parse(e.data);
-            handleDccSwitch(data.id, data.state, data.source, data.user || '');
-        } catch (err) {
-            console.error('SSE parse error:', err);
-        }
-    });
+document.addEventListener('click', () => {
+    if (!dccLogPanel.classList.contains('hidden')) {
+        dccLogPanel.classList.add('hidden');
+    }
+});
 
-    eventSource.addEventListener('config-update', (e) => {
-        try {
-            const d = JSON.parse(e.data);
-            if (d._save && pendingSaveIds.includes(d._save)) return;
-            if (d._user && d._user === userName) return;
-            if (d._user) {
-                logAction(`👤 ${d._user} a modifié la configuration`);
-            } else if (!d._user) {
-                logAction("🔄 Configuration mise à jour par un autre utilisateur");
-            }
-        } catch (_) {
+dccLogPanel.addEventListener('click', (e) => e.stopPropagation());
+
+eventSource = new EventSource('/events');
+
+function onSSEEvent(e) {
+    espJoignable();
+    return e;
+}
+
+eventSource.addEventListener('dcc-switch', (e) => {
+    onSSEEvent(e);
+    try {
+        const data = JSON.parse(e.data);
+        let key = `sw-${data.id}-${data.state}`;
+        if (dccLogEnabled && key !== lastDccKey) {
+            let addr = data.address !== undefined ? data.address : (data.id * 2 + 33016 + (data.state || 0));
+            let cmd = data.cmd !== undefined ? data.cmd : '?';
+            console.log(`[DCC] {address: ${addr}, cmd: ${cmd}, state: ${data.state}, source: "${data.source}"}`);
+        }
+        dccLogAdd('sw', data);
+        handleDccSwitch(data.id, data.state, data.source, data.user || '');
+    } catch (err) {
+        console.error('SSE parse error:', err);
+    }
+});
+
+eventSource.addEventListener('config-update', (e) => {
+    onSSEEvent(e);
+    try {
+        const d = JSON.parse(e.data);
+        if (d._save && pendingSaveIds.includes(d._save)) return;
+        if (d._user && d._user === userName) return;
+        if (d._user) {
+            logAction(`👤 ${d._user} a modifié la configuration`);
+        } else if (!d._user) {
             logAction("🔄 Configuration mise à jour par un autre utilisateur");
         }
-        fetch('/config.json')
-            .then(r => r.json())
-            .then(data => {
-                config = data;
-                renderSwitches();
-            });
-    });
-    
-    eventSource.addEventListener('emergency-stop', (e) => {
-        try {
-            const data = JSON.parse(e.data);
-            if (data.active) {
-                emergencyOverlay.classList.remove('hidden');
-                logAction('⚠️ ARRÊT D\'URGENCE DCC');
-            } else {
-                emergencyOverlay.classList.add('hidden');
-                logAction('Arrêt d\'urgence levé');
-            }
-        } catch (err) {
-            console.error('SSE parse error:', err);
-        }
-    });
-    
-    eventSource.addEventListener('dcc-signal', (e) => {
-        try {
-            const data = JSON.parse(e.data);
-            const signalDot = signalIndicator.querySelector('.signal-dot');
+    } catch (_) {
+        logAction("🔄 Configuration mise à jour par un autre utilisateur");
+    }
+    fetch('/config.json')
+        .then(r => r.json())
+        .then(data => {
+            config = data;
+            renderSwitches();
+        });
+});
+
+eventSource.addEventListener('emergency-stop', (e) => {
+    onSSEEvent(e);
+    try {
+        const data = JSON.parse(e.data);
+        const signalText = signalIndicator.querySelector('.signal-text');
+        if (data.active) {
+            emergencyOverlay.classList.remove('hidden');
+            signalIndicator.className = 'signal-emergency';
+            signalText.textContent = 'ARRET URGENCE';
+            logAction('⚠️ ARRÊT D\'URGENCE DCC');
+        } else {
+            emergencyOverlay.classList.add('hidden');
             const signalText = signalIndicator.querySelector('.signal-text');
-            if (data.present) {
+            if (dccSignalPresent) {
                 signalIndicator.className = 'signal-ok';
                 signalText.textContent = 'DCC OK';
-                logAction('Signal DCC détecté');
             } else {
-                signalIndicator.className = 'signal-lost';
-                signalText.textContent = 'Aucun signal';
-                logAction('⚠️ Aucun signal DCC');
+                signalIndicator.className = 'signal-ko';
+                signalText.innerHTML = 'DCC KO<br><span style="font-size:9px;opacity:0.7">Court-circuit / Non relié</span>';
             }
-        } catch (err) {
-            console.error('SSE parse error:', err);
+            logAction('Arrêt d\'urgence levé');
         }
-    });
-    
-    eventSource.onerror = () => {
-        console.log('SSE reconnecting...');
-    };
+    } catch (err) {
+        console.error('SSE parse error:', err);
+    }
+});
+
+eventSource.addEventListener('dcc-signal', (e) => {
+    onSSEEvent(e);
+    try {
+        const data = JSON.parse(e.data);
+        const signalDot = signalIndicator.querySelector('.signal-dot');
+        const signalText = signalIndicator.querySelector('.signal-text');
+        if (data.present) {
+            dccSignalPresent = true;
+            signalIndicator.className = 'signal-ok';
+            signalText.textContent = 'DCC OK';
+            logAction('Signal DCC détecté');
+        } else {
+            dccSignalPresent = false;
+            if (emergencyOverlay.classList.contains('hidden')) {
+                signalIndicator.className = 'signal-ko';
+                signalText.innerHTML = 'DCC KO<br><span style="font-size:9px;opacity:0.7">Court-circuit / Non relié</span>';
+            }
+            logAction('⚠️ Aucun signal DCC');
+        }
+    } catch (err) {
+        console.error('SSE parse error:', err);
+    }
+});
+
+eventSource.addEventListener('dcc-unknown', (e) => {
+    onSSEEvent(e);
+    try {
+        const data = JSON.parse(e.data);
+            let sn = dccAddrToSwitchNum(data.address);
+        let key = `un-${data.address}-${data.cmd}`;
+        if (dccLogEnabled && key !== lastDccKey) console.log(`[DCC] {address: ${data.address}, cmd: ${data.cmd}}`);
+        dccLogAdd('un', data);
+    } catch (err) {
+        console.error('SSE parse error:', err);
+    }
+});
+
+eventSource.addEventListener('dcc-pin', (e) => {
+    onSSEEvent(e);
+    console.log('[PIN]', e.data);
+});
+
+eventSource.addEventListener('dcc-ping', (e) => {
+    onSSEEvent(e);
+});
+
+let dccSignalPresent = true;
+let lastHeartbeat = Date.now();
+
+let reconnectModalTime = 0;
+
+function espJoignable() {
+    lastHeartbeat = Date.now();
+    reconnectModal.classList.add('hidden');
+    reconnectModalTime = 0;
+}
+
+function espNonJoignable() {
+    if (!reconnectModal.classList.contains('hidden')) return;
+    reconnectModal.classList.remove('hidden');
+    reconnectModalTime = Date.now();
+    console.log("esp non joignable");
+}
+
+eventSource.onopen = espJoignable;
+eventSource.onerror = espNonJoignable;
+
+setInterval(() => {
+    if (Date.now() - lastHeartbeat > 15000) {
+        if (!reconnectModal.classList.contains('hidden')) {
+            if (reconnectModalTime > 0 && Date.now() - reconnectModalTime > 30000) {
+                console.log("ESP toujours pas joignable apres 30s, rechargement...");
+                location.reload();
+            }
+            return;
+        }
+        reconnectModal.classList.remove('hidden');
+        reconnectModalTime = Date.now();
+        console.log("esp non joignable");
+    }
+}, 3000);
+
+function dccAddrToSwitchNum(addr) {
+    let n = Math.floor((addr - 33016) / 2) + 1;
+    if (n >= 1 && n <= 99) return n;
+    return null;
+}
+
+function dccOrderType(addr) {
+    return (addr % 2) + 1;
+}
+
+let lastDccKey = null;
+
+function dccLogAdd(type, data) {
+    let key = type === 'sw' ? `sw-${data.id}-${data.state}` : `un-${data.address}-${data.cmd}`;
+    if (key === lastDccKey) return;
+    lastDccKey = key;
+    dccLogEntries.push({ type, data, time: new Date() });
+    renderDccLog();
+}
+
+function renderDccLog() {
+    if (dccLogPanel.classList.contains('hidden')) return;
+    let entries = dccLogFilterOn
+        ? dccLogEntries.filter(e => e.type === 'sw' || dccAddrToSwitchNum(e.data.address) !== null)
+        : dccLogEntries;
+    entries = [...entries].reverse();
+    dccLogList.innerHTML = entries.map(e => {
+        let time = e.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        let isSwitch = false;
+        let label, icon, detail;
+        if (e.type === 'sw') {
+            isSwitch = true;
+            let mode = (e.data.state || 0) + 1;
+            let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
+            label = `Aiguillage ${e.data.id + 1}`;
+            let rawAddr = e.data.address || ((e.data.id) * 2 + 33016 + (mode - 1));
+            let rawCmd = e.data.cmd !== undefined ? e.data.cmd : '';
+            detail = `${modeLabel} (adresse ${rawAddr}${rawCmd ? `, cmd: ${rawCmd}` : ''})`;
+            icon = '<span class="dcc-log-icon material-symbols-outlined">fork_right</span>';
+        } else {
+            let sn = dccAddrToSwitchNum(e.data.address);
+            isSwitch = sn !== null;
+            let suffix = sn ? ` => aiguillage ${sn}` : '';
+            label = `adresse ${e.data.address}${suffix}`;
+            if (isSwitch) {
+                let mode = dccOrderType(e.data.address);
+                let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
+                detail = `${modeLabel} (adresse ${e.data.address}, cmd: ${e.data.cmd})`;
+            } else {
+                detail = `cmd: ${e.data.cmd}`;
+            }
+            if (isSwitch) {
+                icon = '<span class="dcc-log-icon material-symbols-outlined">fork_right</span>';
+            } else {
+                icon = '<span class="dcc-log-icon unknown material-symbols-outlined">help</span>';
+            }
+        }
+        return `<li class="dcc-log-item">${icon}<div><span class="dcc-log-time">${time}</span><span class="dcc-log-addr ${isSwitch ? 'known' : 'unknown'}">${label}</span><span class="dcc-log-detail">${detail}</span></div></li>`;
+    }).join('');
 }
 
 function updateSwitchAppearance(index) {
@@ -507,15 +705,18 @@ function updateSwitchAppearance(index) {
 }
 
 function handleDccSwitch(switchId, state, source, user) {
+    if (!config.switches || !config.switches[switchId]) return;
+
+    let modeLabel = state === 0 ? 'Ouverture' : 'Fermeture';
     if (config.switches[switchId].state === state) return;
 
     config.switches[switchId].state = state;
     updateSwitchAppearance(switchId);
 
     if (source === 'web') {
-        logAction(`⇄ ${user || 'Inconnu'} a basculé l'aiguillage ${switchId + 1} en Mode ${state + 1}`);
+        logAction(`⇄ ${user || 'Inconnu'} a basculé l'aiguillage ${switchId + 1} en ${modeLabel}`);
     } else {
-        logAction(`⚡ Aiguillage ${switchId + 1} basculé en Mode ${state + 1} (DCC)`);
+        logAction(`⚡ Aiguillage ${switchId + 1} basculé en ${modeLabel} (DCC)`);
     }
 
     saveConfig();
@@ -523,8 +724,6 @@ function handleDccSwitch(switchId, state, source, user) {
 
 function startApp() {
 setUserName(userName);
-const emergencyOverlay = document.getElementById('emergency-overlay');
-const signalIndicator = document.getElementById('signal-indicator');
 
 let imgTest = new Image();
 imgTest.src = `/fond.jpg?t=${new Date().getTime()}`;
@@ -544,7 +743,7 @@ fetch('/config.json')
     .then(data => {
         config = data;
         renderSwitches();
-        initEventSource();
+        console.log('%c[AiguillageManager] ESP prêt ✓', 'color:#34c759;font-weight:700');
     })
     .catch(error => {
         config = {
@@ -559,8 +758,9 @@ fetch('/config.json')
         };
         logAction("⚠ ESP32 injoignable, config par défaut");
         renderSwitches();
-        initEventSource();
+        console.log('%c[AiguillageManager] Mode hors-ligne (ESP injoignable)', 'color:#ffcc00;font-weight:700');
     });
+}
 
 const switchMenu = document.getElementById('switch-menu');
 const sizeSubmenu = document.getElementById('size-submenu');
@@ -600,15 +800,58 @@ switchMenu.querySelectorAll('[data-size]').forEach(btn => {
     };
 });
 
+let addressModalIndex = -1;
+
+switchMenu.querySelector('[data-action="assign-address"]').onclick = () => {
+    if (menuSwitchIndex < 0) return;
+    addressModalIndex = menuSwitchIndex;
+    closeSwitchMenu();
+    addressInput.value = config.switches[addressModalIndex].dccAddress || (addressModalIndex + 1);
+    addressModal.classList.remove('hidden');
+    setTimeout(() => addressInput.focus(), 100);
+};
+
+function closeAddressModal() {
+    addressModal.classList.add('hidden');
+    addressModalIndex = -1;
+}
+
+addressCancel.onclick = closeAddressModal;
+
+addressValidate.onclick = () => {
+    if (addressModalIndex < 0) return;
+    const val = parseInt(addressInput.value);
+    if (isNaN(val) || val < 1 || val > 99) {
+        closeAddressModal();
+        errorText.textContent = "Veuillez saisir un nombre entre 1 et 99";
+        errorModal.classList.remove('hidden');
+        return;
+    }
+    const conflict = config.switches.find((sw, i) => i !== addressModalIndex && sw.dccAddress === val);
+    if (conflict) {
+        const conflictIndex = config.switches.indexOf(conflict);
+        closeAddressModal();
+        errorText.textContent = `L'adresse ${val} est déjà attribuée à l'aiguillage ${conflictIndex + 1}`;
+        errorModal.classList.remove('hidden');
+        return;
+    }
+    config.switches[addressModalIndex].dccAddress = val;
+    logAction(`Aiguillage ${addressModalIndex + 1} : adresse DCC → ${val}`);
+    closeAddressModal();
+    renderSwitches();
+    saveConfig();
+};
+
 function renderSwitches() {
     closeSwitchMenu();
     switchesContainer.innerHTML = ''; 
     config.switches.forEach((sw, index) => {
+        if (sw.dccAddress === undefined) sw.dccAddress = index + 1;
         let btn = document.createElement('div');
         btn.className = 'switch';
         if (sw.size > 1) btn.classList.add(`size-${sw.size}`);
         btn.style.backgroundColor = sw.state === 0 ? "#34c759" : "#ffcc00"; 
-        btn.innerHTML = index + 1;
+        btn.innerHTML = sw.dccAddress;
 
         if (sw.visible === false) {
             btn.classList.add('hidden-switch');
@@ -721,9 +964,10 @@ function handleInteraction(e, index, btn) {
         document.addEventListener('pointerup', onUp);
     } else {
         config.switches[index].state = config.switches[index].state === 0 ? 1 : 0;
-        let mode = config.switches[index].state + 1; 
+        let mode = config.switches[index].state + 1;
+        let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
         
-        logAction(`Aiguillage ${index + 1} basculé en Mode ${mode}`);
+        logAction(`Aiguillage ${index + 1} basculé en ${modeLabel}`);
         
         fetch(`/switch?id=${index + 1}&mode=${mode}&user=${encodeURIComponent(userName)}`).catch(()=>console.log("Mode local uniquement"));
         
@@ -879,5 +1123,3 @@ bgCamera.addEventListener('change', function(event) {
     bgCamera.value = '';
     handleBgFile(file);
 }, false);
-
-}

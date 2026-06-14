@@ -37,6 +37,10 @@ body {
     text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 
+#signal-indicator {
+    cursor: pointer;
+}
+
 #signal-indicator.hidden {
     display: none;
 }
@@ -75,6 +79,45 @@ body {
 
 #signal-indicator.signal-lost .signal-text::before {
     content: '✕ ';
+}
+
+#signal-indicator.signal-ko {
+    background: rgba(255, 149, 0, 0.25);
+    color: #ff9500;
+    border: 1px solid rgba(255, 149, 0, 0.4);
+    animation: none;
+    height: auto;
+    min-height: 0;
+    line-height: 1.3;
+    padding: 6px 14px;
+}
+
+#signal-indicator.signal-ko .signal-dot {
+    display: none;
+}
+
+#signal-indicator.signal-emergency {
+    background: rgba(255, 0, 0, 0.35);
+    color: #ff3333;
+    border: 1px solid rgba(255, 0, 0, 0.5);
+    animation: emergency-blink 0.6s ease-in-out infinite alternate;
+}
+
+#signal-indicator.signal-emergency .signal-dot {
+    display: none;
+}
+
+#signal-indicator.signal-emergency .signal-text::before {
+    content: '🚨 ';
+}
+
+#signal-indicator.signal-emergency .signal-text::after {
+    content: ' 🚨';
+}
+
+@keyframes emergency-blink {
+    0% { opacity: 1; background: rgba(255, 0, 0, 0.35); }
+    100% { opacity: 0.5; background: rgba(200, 0, 0, 0.5); }
 }
 
 @keyframes pulse-green {
@@ -702,6 +745,211 @@ body {
         max-height: 50vh;
     }
 }
+/* --- DCC LOG PANEL --- */
+#dcc-log-panel {
+    position: fixed;
+    top: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(480px, 90vw);
+    max-height: 65vh;
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    z-index: 30001;
+    display: flex;
+    flex-direction: column;
+    transition: opacity 0.25s, visibility 0.25s, transform 0.25s;
+}
+
+#dcc-log-panel.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(-8px);
+}
+
+.dcc-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.dcc-log-header h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+#dcc-log-clear {
+    padding: 4px 12px;
+    font-size: 11px;
+    border-radius: 10px;
+}
+
+.dcc-log-filter {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    white-space: nowrap;
+}
+
+.toggle-label input {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.toggle-label input:checked + .toggle-slider {
+    background: #0a84ff;
+}
+
+.toggle-label input:checked + .toggle-slider::after {
+    transform: translateX(16px);
+}
+
+#dcc-log-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+
+#dcc-log-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+#dcc-log-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#dcc-log-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+#dcc-log-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.dcc-log-item {
+    font-size: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.dcc-log-item > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.dcc-log-icon {
+    font-size: 22px;
+    color: #34c759;
+    flex-shrink: 0;
+}
+
+.dcc-log-icon.unknown {
+    color: rgba(255,255,255,0.25);
+}
+
+.dcc-log-item:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.dcc-log-item:last-child {
+    border-bottom: none;
+}
+
+.dcc-log-item .dcc-log-time {
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+}
+
+.dcc-log-item .dcc-log-addr {
+    font-weight: 600;
+    color: #fff;
+}
+
+.dcc-log-item .dcc-log-addr.known {
+    color: #34c759;
+}
+
+.dcc-log-item .dcc-log-addr.unknown {
+    color: #ffcc00;
+}
+
+.dcc-log-item .dcc-log-detail {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+}
+
+/* chevron dans le signal indicator */
+.signal-chevron {
+    font-size: 14px;
+    opacity: 0.4;
+    margin-left: 4px;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+
+#signal-indicator:hover .signal-chevron {
+    opacity: 0.8;
+}
+
 /* ------------------------------------------------ */
 
 .btn {
@@ -861,8 +1109,7 @@ body {
     padding: 6px;
     box-shadow: 0 12px 48px rgba(0,0,0,0.5);
     min-width: 200px;
-    animation: menu-in 0.2s ease-out;
-    transform-origin: top center;
+    animation: menu-fade-in 0.15s ease-out;
 }
 
 #switch-menu.hidden {
@@ -872,6 +1119,11 @@ body {
 @keyframes menu-in {
     from { opacity: 0; transform: scale(0.9) translateY(-8px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes menu-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .menu-arrow {
@@ -1134,6 +1386,51 @@ body {
     color: #ff3b30;
 }
 
+/* --- INPUT MODAL --- */
+.modal-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    outline: none;
+    transition: border 0.2s;
+    box-sizing: border-box;
+    text-align: center;
+    margin: 8px 0 4px;
+}
+.modal-input:focus {
+    border-color: var(--primary);
+}
+.modal-input::placeholder {
+    color: rgba(255,255,255,0.3);
+    font-size: 15px;
+    font-weight: 400;
+}
+.modal-input::-webkit-outer-spin-button,
+.modal-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.modal-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* --- MODAL ACTIONS --- */
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 16px;
+}
+.modal-actions .btn {
+    margin-top: 0;
+    min-width: 100px;
+}
+
 /* --- MODALS --- */
 .modal-overlay {
     position: fixed;
@@ -1213,6 +1510,10 @@ body {
     font-size: 24px;
     font-weight: 700;
     margin: 0 auto 16px;
+}
+
+#reconnect-modal {
+    z-index: 100000;
 }
 
 #footer-frixo {

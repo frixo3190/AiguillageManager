@@ -1,2 +1,11 @@
 lancer l'upload littlefs pour les maj web :
 pio run --target uploadfs
+
+
+pio run -t upload --upload-port 192.168.70.43
+
+pio run --target uploadfs --upload-port 192.168.70.43
+
+
+pio run --target uploadfs --upload-port AiguillageManager.local
+
