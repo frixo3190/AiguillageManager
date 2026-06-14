@@ -77,13 +77,7 @@ void notifyDccMsg(DCC_MSG * msg) {
     uint16_t addr = (msg->Data[0] << 8) | msg->Data[1];
     uint8_t cmd = msg->Data[2];
     
-    int calcSwitch = -1;
-    if (addr >= 33016) {
-      int base = addr - 33016;
-      if (addr < 33000) base = addr - 32272 + 8;
-      else if (addr > 33500) base = addr - 33530 + 18;
-      calcSwitch = base / 2 + 1;
-    }
+    int calcSwitch = (((addr - 32768) >> 2) ^ 4) * 4 + (cmd & 3) + 1;
     int mode = (addr % 2) + 1;
     
     int switchId = -1;

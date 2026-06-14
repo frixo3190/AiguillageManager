@@ -625,7 +625,7 @@ eventSource.addEventListener('dcc-unknown', (e) => {
     onSSEEvent(e);
     try {
         const data = JSON.parse(e.data);
-            let sn = dccAddrToSwitchNum(data.address);
+            let sn = dccAddrToSwitchNum(data.address, data.cmd);
         let key = `un-${data.address}-${data.cmd}`;
         if (dccLogEnabled && key !== lastDccKey) console.log(`[DCC] {address: ${data.address}, cmd: ${data.cmd}}`);
         dccLogAdd('un', data);
@@ -739,11 +739,8 @@ setInterval(() => {
     }
 }, 3000);
 
-function dccAddrToSwitchNum(addr) {
-    let base = addr - 33016;
-    if (addr < 33000) base = addr - 32272 + 8;
-    else if (addr > 33500) base = addr - 33530 + 18;
-    let n = Math.floor(base / 2) + 1;
+function dccAddrToSwitchNum(addr, cmd) {
+    let n = (((addr - 32768) >> 2) ^ 4) * 4 + (cmd & 3) + 1;
     if (n >= 1 && n <= 99) return n;
     return null;
 }
@@ -768,7 +765,7 @@ function dccLogAdd(type, data) {
 function renderDccLog() {
     if (dccLogPanel.classList.contains('hidden')) return;
     let entries = dccLogFilterOn
-        ? dccLogEntries.filter(e => e.type === 'em' || e.type === 'sw' || dccAddrToSwitchNum(e.data.address) !== null)
+        ? dccLogEntries.filter(e => e.type === 'em' || e.type === 'sw' || dccAddrToSwitchNum(e.data.address, e.data.cmd) !== null)
         : dccLogEntries;
     entries = [...entries].reverse();
     dccLogList.innerHTML = entries.map(e => {
@@ -791,7 +788,7 @@ function renderDccLog() {
             detail = `${modeLabel} (adresse ${rawAddr}${rawCmd ? `, cmd: ${rawCmd}` : ''})`;
             icon = '<span class="dcc-log-icon material-symbols-outlined">fork_right</span>';
         } else {
-            let sn = dccAddrToSwitchNum(e.data.address);
+            let sn = dccAddrToSwitchNum(e.data.address, e.data.cmd);
             isSwitch = sn !== null;
             let suffix = sn ? ` => aiguillage ${sn}` : '';
             label = `adresse ${e.data.address}${suffix}`;
