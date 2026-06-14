@@ -21,6 +21,7 @@ const map = document.getElementById('layout-map');
 const switchesContainer = document.getElementById('switches-container');
 const modeBtn = document.getElementById('mode-btn');
 const adminPanel = document.getElementById('admin-panel');
+const adminButtons = document.getElementById('admin-buttons');
 const planBtn = document.getElementById('plan-btn');
 const planMenu = document.getElementById('plan-menu');
 const planDelete = document.getElementById('plan-delete');
@@ -1078,6 +1079,7 @@ modeBtn.onclick = () => {
         modeBtn.innerHTML = "🔓 Mode Configuration";
         modeBtn.classList.remove('btn-user');
         modeBtn.classList.add('btn-config');
+        adminButtons.classList.remove('hidden');
         adminPanel.classList.remove('hidden');
         signalIndicator.classList.add('hidden');
         logAction("Accès au Mode Configuration");
@@ -1085,6 +1087,7 @@ modeBtn.onclick = () => {
         modeBtn.innerHTML = "🔒 Mode Utilisateur";
         modeBtn.classList.remove('btn-config');
         modeBtn.classList.add('btn-user');
+        adminButtons.classList.add('hidden');
         adminPanel.classList.add('hidden');
         signalIndicator.classList.remove('hidden');
         logAction("Retour au Mode Utilisateur");

@@ -29,6 +29,23 @@
     <button id="history-btn" class="btn btn-secondary">📜 Historique</button>
 
     <div id="top-right-group">
+        <div id="admin-buttons" class="hidden">
+            <div id="plan-wrapper">
+                <button id="plan-btn" class="btn btn-secondary">🖼️ Plan</button>
+                <div id="plan-menu" class="hidden">
+                    <button id="plan-upload">📁 Upload</button>
+                    <button id="plan-photo">📷 Photo</button>
+                    <button id="plan-delete">🗑️ Supprimer le plan</button>
+                </div>
+            </div>
+            <div id="other-wrapper">
+                <button id="other-btn" class="btn btn-secondary">⚙️ Autre</button>
+                <div id="other-menu" class="hidden">
+                    <button id="export-btn">📥 Exporter la config</button>
+                    <button id="import-btn">📤 Importer la config</button>
+                </div>
+            </div>
+        </div>
         <div id="zoom-wrapper">
             <button id="zoom-btn" class="btn btn-secondary">🔍 Zoom</button>
             <div id="zoom-picker" class="hidden">
@@ -111,19 +128,6 @@
     </div>
 
     <div id="admin-panel" class="hidden">
-        <button id="plan-btn" class="btn btn-secondary">🖼️ Gestion du plan</button>
-        <div id="plan-menu" class="hidden">
-            <button id="plan-upload">📁 Upload</button>
-            <button id="plan-photo">📷 Photo</button>
-            <button id="plan-delete">🗑️ Supprimer le plan</button>
-        </div>
-        <div id="other-wrapper">
-            <button id="other-btn" class="btn btn-secondary">⚙️ Autre</button>
-            <div id="other-menu" class="hidden">
-                <button id="export-btn">📥 Exporter la config</button>
-                <button id="import-btn">📤 Importer la config</button>
-            </div>
-        </div>
         <input type="file" id="bg-upload" accept="image/*" style="display: none;">
         <input type="file" id="bg-camera" accept="image/*" capture="environment" style="display: none;">
         <input type="file" id="import-file" accept=".json" style="display: none;">
