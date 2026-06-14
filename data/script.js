@@ -3,7 +3,11 @@ let config = { switches: [] };
 let eventSource = null;
 let userName = '';
 let dccLogEnabled = false;
+let cancelDccOff = false;
+let dccMuted = localStorage.getItem('dccMuted') === '1';
+let dccAlertCtx = null;
 function logdcc(enabled) { dccLogEnabled = enabled; }
+function cancel_detect_dcc_off(enabled) { cancelDccOff = enabled; }
 function logPin(enabled) {
     fetch('/dccpinlog?on=' + (enabled ? 1 : 0))
         .then(r => r.text())
@@ -12,9 +16,10 @@ function logPin(enabled) {
 }
 function help() {
     console.log('%c AiguillageManager - Commandes disponibles', 'font-size:14px;font-weight:700;color:#0a84ff');
-    console.log('  %clogdcc(true/false)%c  →  Log DCC brut dans la console', 'color:#ffcc00', 'color:#888');
-    console.log('  %clogPin(true/false)%c  →  Log changements d\'état pin DCC', 'color:#ffcc00', 'color:#888');
-    console.log('  %chelp()%c              →  Affiche cette aide', 'color:#ffcc00', 'color:#888');
+    console.log('  %clogdcc(true/false)%c          →  Log DCC brut dans la console', 'color:#ffcc00', 'color:#888');
+    console.log('  %clogPin(true/false)%c          →  Log changements d\'état pin DCC', 'color:#ffcc00', 'color:#888');
+    console.log('  %ccancel_detect_dcc_off(true/false)%c  →  Ignore la perte de signal DCC', 'color:#ffcc00', 'color:#888');
+    console.log('  %chelp()%c                      →  Affiche cette aide', 'color:#ffcc00', 'color:#888');
 }
 
 const map = document.getElementById('layout-map');
@@ -213,8 +218,17 @@ const addressInput = document.getElementById('address-input');
 const addressCancel = document.getElementById('address-cancel');
 const addressValidate = document.getElementById('address-validate');
 const emergencyOverlay = document.getElementById('emergency-overlay');
-const signalIndicator = document.getElementById('signal-indicator');
+const signalIndicator = document.getElementById('dcc-status');
+const dccBeacon = document.getElementById('dcc-beacon');
 const reconnectModal = document.getElementById('reconnect-modal');
+const muteBtn = document.getElementById('mute-btn');
+
+muteBtn.textContent = dccMuted ? '🔇' : '🔊';
+muteBtn.onclick = () => {
+    dccMuted = !dccMuted;
+    localStorage.setItem('dccMuted', dccMuted ? '1' : '0');
+    muteBtn.textContent = dccMuted ? '🔇' : '🔊';
+};
 
 signalIndicator.onclick = (e) => {
     e.stopPropagation();
@@ -421,6 +435,7 @@ function renderZoomTabs() {
             let mode = config.switches[index].state + 1;
             let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
             logAction(`Aiguillage ${index + 1} basculé en ${modeLabel} (zoom)`);
+            dccPlaySwitch(modeLabel);
             fetch(`/switch?id=${index + 1}&mode=${mode}&user=${encodeURIComponent(userName)}`).catch(()=>{});
             updateSwitchAppearance(index);
             saveConfig();
@@ -558,6 +573,7 @@ eventSource.addEventListener('emergency-stop', (e) => {
             emergencyOverlay.classList.remove('hidden');
             signalIndicator.className = 'signal-emergency';
             signalText.textContent = 'ARRET URGENCE';
+            dccBeacon.classList.add('hidden');
             logAction('⚠️ ARRÊT D\'URGENCE DCC');
         } else {
             emergencyOverlay.classList.add('hidden');
@@ -565,9 +581,11 @@ eventSource.addEventListener('emergency-stop', (e) => {
             if (dccSignalPresent) {
                 signalIndicator.className = 'signal-ok';
                 signalText.textContent = 'DCC OK';
-            } else {
+                dccBeacon.classList.add('hidden');
+            } else if (!cancelDccOff) {
                 signalIndicator.className = 'signal-ko';
-                signalText.innerHTML = 'DCC KO<br><span style="font-size:9px;opacity:0.7">Court-circuit / Non relié</span>';
+                signalText.innerHTML = '🚨 DCC KO (ou) Arrêt urgence';
+                dccBeacon.classList.remove('hidden');
             }
             logAction('Arrêt d\'urgence levé');
         }
@@ -586,12 +604,15 @@ eventSource.addEventListener('dcc-signal', (e) => {
             dccSignalPresent = true;
             signalIndicator.className = 'signal-ok';
             signalText.textContent = 'DCC OK';
+            dccBeacon.classList.add('hidden');
             logAction('Signal DCC détecté');
         } else {
             dccSignalPresent = false;
-            if (emergencyOverlay.classList.contains('hidden')) {
+            if (emergencyOverlay.classList.contains('hidden') && !cancelDccOff) {
                 signalIndicator.className = 'signal-ko';
-                signalText.innerHTML = 'DCC KO<br><span style="font-size:9px;opacity:0.7">Court-circuit / Non relié</span>';
+                signalText.innerHTML = '🚨 DCC KO (ou) Arrêt urgence';
+                dccBeacon.classList.remove('hidden');
+                dccPlayAlert();
             }
             logAction('⚠️ Aucun signal DCC');
         }
@@ -634,6 +655,54 @@ eventSource.addEventListener('dcc-ping', (e) => {
     onSSEEvent(e);
 });
 
+function dccPlayAlert() {
+    if (dccMuted) return;
+    try {
+        if (!dccAlertCtx) dccAlertCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var o = dccAlertCtx.createOscillator();
+        var g = dccAlertCtx.createGain();
+        o.type = 'sawtooth';
+        g.gain.value = 0.08;
+        o.connect(g);
+        g.connect(dccAlertCtx.destination);
+        o.start();
+        var t = dccAlertCtx.currentTime;
+        for (var i = 0; i < 6; i++) {
+            o.frequency.setValueAtTime(250, t + i * 0.5);
+            o.frequency.linearRampToValueAtTime(500, t + i * 0.5 + 0.25);
+            o.frequency.linearRampToValueAtTime(250, t + i * 0.5 + 0.5);
+        }
+        g.gain.setValueAtTime(0.08, t);
+        g.gain.linearRampToValueAtTime(0.08, t + 2.8);
+        g.gain.linearRampToValueAtTime(0.001, t + 3);
+        o.stop(t + 3);
+    } catch (_) {}
+}
+
+function dccPlaySwitch(modeLabel) {
+    if (dccMuted) return;
+    try {
+        if (!dccAlertCtx) dccAlertCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var now = dccAlertCtx.currentTime;
+        var isOuverture = modeLabel === 'Ouverture';
+        var freq1 = isOuverture ? 440 : 660;
+        var freq2 = isOuverture ? 660 : 440;
+        for (var i = 0; i < 2; i++) {
+            var o = dccAlertCtx.createOscillator();
+            var g = dccAlertCtx.createGain();
+            o.type = 'triangle';
+            o.frequency.value = i === 0 ? freq1 : freq2;
+            g.gain.value = 0.08;
+            o.connect(g);
+            g.connect(dccAlertCtx.destination);
+            o.start(now + i * 0.15);
+            g.gain.setValueAtTime(0.08, now + i * 0.15);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.12);
+            o.stop(now + i * 0.15 + 0.12);
+        }
+    } catch (_) {}
+}
+
 let dccSignalPresent = true;
 let lastHeartbeat = Date.now();
 
@@ -671,7 +740,10 @@ setInterval(() => {
 }, 3000);
 
 function dccAddrToSwitchNum(addr) {
-    let n = Math.floor((addr - 33016) / 2) + 1;
+    let base = addr - 33016;
+    if (addr < 33000) base = addr - 32272 + 8;
+    else if (addr > 33500) base = addr - 33530 + 18;
+    let n = Math.floor(base / 2) + 1;
     if (n >= 1 && n <= 99) return n;
     return null;
 }
@@ -761,6 +833,7 @@ function handleDccSwitch(switchId, state, source, user) {
 
     config.switches[switchId].state = state;
     updateSwitchAppearance(switchId);
+    dccPlaySwitch();
 
     if (source === 'web') {
         logAction(`⇄ ${user || 'Inconnu'} a basculé l'aiguillage ${switchId + 1} en ${modeLabel}`);
@@ -1017,6 +1090,7 @@ function handleInteraction(e, index, btn) {
         let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
         
         logAction(`Aiguillage ${index + 1} basculé en ${modeLabel}`);
+        dccPlaySwitch();
         
         fetch(`/switch?id=${index + 1}&mode=${mode}&user=${encodeURIComponent(userName)}`).catch(()=>console.log("Mode local uniquement"));
         
@@ -1081,7 +1155,6 @@ modeBtn.onclick = () => {
         modeBtn.classList.add('btn-config');
         adminButtons.classList.remove('hidden');
         adminPanel.classList.remove('hidden');
-        signalIndicator.classList.add('hidden');
         logAction("Accès au Mode Configuration");
     } else {
         modeBtn.innerHTML = "🔒 Mode Utilisateur";
@@ -1089,7 +1162,6 @@ modeBtn.onclick = () => {
         modeBtn.classList.add('btn-user');
         adminButtons.classList.add('hidden');
         adminPanel.classList.add('hidden');
-        signalIndicator.classList.remove('hidden');
         logAction("Retour au Mode Utilisateur");
     }
 };

@@ -15,104 +15,138 @@ body {
     touch-action: none; 
 }
 
-#signal-indicator {
+/* --- TOP BAR --- */
+#top-bar {
     position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 11px;
-    font-family: system-ui, sans-serif;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 15px;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: stretch;
     z-index: 20002;
-    display: inline-flex;
+    height: 44px;
+}
+
+#dcc-status {
+    flex: 1;
+    display: flex;
     align-items: center;
-    gap: 6px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0,0,0,0.15);
-    height: auto;
-    min-height: 0;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-}
-
-#signal-indicator {
+    justify-content: center;
+    gap: 8px;
     cursor: pointer;
-}
-
-#signal-indicator.hidden {
-    display: none;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: system-ui, sans-serif;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    transition: background 0.2s;
+    min-width: 0;
+    padding: 0 12px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-right: none;
+    user-select: none;
 }
 
 .signal-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .signal-text {
-    display: inline-block;
+    text-align: center;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#signal-indicator.signal-ok {
-    background: rgba(52, 199, 89, 0.25);
-    color: #34c759;
-    border: 1px solid rgba(52, 199, 89, 0.4);
+#dcc-status.signal-ok {
+    color: #b8f0b8;
+    background: rgba(52, 199, 89, 0.35);
+    text-shadow: 0 0 8px rgba(52, 199, 89, 0.5), 0 1px 3px rgba(0,0,0,0.7);
 }
-
-#signal-indicator.signal-ok .signal-dot {
+#dcc-status.signal-ok .signal-dot {
     background: #34c759;
     animation: pulse-green 2s infinite;
 }
 
-#signal-indicator.signal-lost {
-    background: rgba(255, 59, 48, 0.25);
-    color: #ff3b30;
-    border: 1px solid rgba(255, 59, 48, 0.4);
-}
-
-#signal-indicator.signal-lost .signal-dot {
-    background: #ff3b30;
-}
-
-#signal-indicator.signal-lost .signal-text::before {
-    content: '✕ ';
-}
-
-#signal-indicator.signal-ko {
-    background: rgba(255, 149, 0, 0.25);
+#dcc-status.signal-ko {
     color: #ff9500;
-    border: 1px solid rgba(255, 149, 0, 0.4);
     animation: pulse-orange 1s ease-in-out infinite alternate;
-    height: auto;
-    min-height: 0;
-    line-height: 1.3;
-    padding: 6px 14px;
 }
-
-#signal-indicator.signal-ko .signal-dot {
+#dcc-status.signal-ko .signal-dot {
     display: none;
 }
 
-#signal-indicator.signal-emergency {
-    background: rgba(255, 0, 0, 0.35);
+#dcc-status.signal-emergency {
     color: #ff3333;
-    border: 1px solid rgba(255, 0, 0, 0.5);
     animation: emergency-blink 0.6s ease-in-out infinite alternate;
 }
+#dcc-status.hidden { display: none; }
 
-#signal-indicator.signal-emergency .signal-dot {
+#dcc-status.signal-emergency .signal-dot {
     display: none;
 }
 
-#signal-indicator.signal-emergency .signal-text::before {
-    content: '🚨 ';
+/* --- TOP BAR CHILDREN --- */
+#top-bar #history-btn {
+    border-radius: 0;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-right: none;
+    height: auto;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+    z-index: auto;
+    position: static;
 }
 
-#signal-indicator.signal-emergency .signal-text::after {
-    content: ' 🚨';
+#top-right-group {
+    display: flex;
+    align-items: stretch;
+    z-index: auto;
+    position: static;
+}
+
+#zoom-btn {
+    border-radius: 0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-left: none;
+    height: auto;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+#admin-buttons:not(.hidden) ~ #zoom-wrapper,
+#admin-buttons:not(.hidden) ~ #user-wrapper,
+#admin-buttons:not(.hidden) ~ #mute-wrapper {
+    display: none;
+}
+
+/* --- dcc-beacon --- */
+#dcc-beacon {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 44px;
+    background: radial-gradient(ellipse 400px 44px at 0 50%, rgba(255, 0, 0, 0.7), transparent 60%);
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 10005;
+    animation: beacon-sweep 1.2s ease-in-out infinite;
+}
+#dcc-beacon.hidden { display: none; }
+
+@keyframes beacon-sweep {
+    0% { background-position: -300px 0; opacity: 1; }
+    45% { opacity: 0.6; }
+    50% { background-position: calc(100vw + 300px) 0; opacity: 1; }
+    100% { background-position: -300px 0; }
 }
 
 @keyframes pulse-orange {
@@ -185,15 +219,6 @@ body {
 }
 
 @media (max-width: 768px) {
-    #signal-indicator {
-        top: 43px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 12px;
-        padding: 6px 12px;
-        z-index: 998;
-    }
-    
     .emergency-content {
         padding: 20px;
     }
@@ -201,20 +226,6 @@ body {
     .emergency-icon {
         font-size: 60px;
     }
-}
-
-#signal-indicator.signal-ok {
-    color: #34c759;
-}
-
-#signal-indicator.signal-lost {
-    color: #ff3b30;
-    animation: blink 1s infinite;
-}
-
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
 }
 
 #zoom-layer {
@@ -273,14 +284,6 @@ body {
 
 .editing #layout-map { filter: brightness(0.7); }
 
-#top-right-group {
-    position: fixed;
-    top: 0;
-    right: 0;
-    display: flex;
-    z-index: 10001;
-}
-
 #mode-btn {
     border-radius: 0;
     transition: background-color 0.3s, transform 0.2s;
@@ -293,25 +296,46 @@ body {
     line-height: 1.2;
 }
 
-#zoom-btn {
-    border-radius: 0 0 0 15px;
-    transition: background-color 0.3s, transform 0.2s;
-    font-size: 13px;
-    padding: 15px 12px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-}
-
 #zoom-wrapper {
     position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+#mute-wrapper {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+#mute-btn {
+    font-size: 14px;
+    padding: 14px 10px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-left: none;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    border-radius: 0;
+    transition: background 0.2s;
+    cursor: pointer;
+    color: white;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+#mute-btn:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#mute-btn.muted {
+    background: rgba(255, 59, 48, 0.3);
+    border-color: rgba(255, 59, 48, 0.4);
 }
 
 #user-wrapper {
     position: relative;
     display: flex;
+    align-items: stretch;
 }
 
 #user-btn {
@@ -477,21 +501,6 @@ body {
     opacity: 1;
 }
 
-/* --- NOUVEAU : Position du bouton d'historique --- */
-#history-btn {
-    position: fixed;
-    top: 0;
-    left: 0;
-    border-radius: 0 0 15px 0;
-    z-index: 10001;
-    transition: background-color 0.3s, transform 0.2s;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
-}
-
 .btn-user, .btn-user:hover {
     background: rgba(0, 0, 0, 0.55);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.15);
@@ -544,10 +553,12 @@ body {
 
 #plan-wrapper {
     position: relative;
+    display: flex;
+    align-items: stretch;
 }
 
 #plan-btn {
-    border-radius: 0 0 0 15px;
+    border-radius: 0;
     border-right: none;
 }
 
@@ -558,12 +569,15 @@ body {
 }
 
 #admin-buttons:not(.hidden) ~ #zoom-wrapper,
-#admin-buttons:not(.hidden) ~ #user-wrapper {
+#admin-buttons:not(.hidden) ~ #user-wrapper,
+#admin-buttons:not(.hidden) ~ #mute-wrapper {
     display: none;
 }
 
 #other-wrapper {
     position: relative;
+    display: flex;
+    align-items: stretch;
 }
 
 #other-menu {
@@ -968,10 +982,6 @@ body {
     margin-left: 4px;
     transition: opacity 0.2s;
     cursor: pointer;
-}
-
-#signal-indicator:hover .signal-chevron {
-    opacity: 0.8;
 }
 
 /* ------------------------------------------------ */
@@ -1545,8 +1555,7 @@ body {
 #footer-frixo {
     position: fixed;
     bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 10px;
     font-size: 10px;
     color: rgba(255, 255, 255, 0.25); 
     z-index: 100;

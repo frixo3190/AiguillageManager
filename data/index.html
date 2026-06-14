@@ -16,7 +16,7 @@
     <script>document.querySelector('link[href="style.css"]').href += '?t=' + Date.now()</script>
 </head>
 <body>
-    <div id="signal-indicator" class="signal-ok"><span class="signal-dot"></span><span class="signal-text">DCC OK</span><span class="signal-chevron material-symbols-outlined">chevron_right</span></div>
+    <div id="dcc-beacon" class="hidden"></div>
 
     <div id="zoom-layer">
         <div id="layout-map">
@@ -26,27 +26,30 @@
             </div>
     </div>
 
-    <button id="history-btn" class="btn btn-secondary">📜 Historique</button>
-
-    <div id="top-right-group">
-        <div id="admin-buttons" class="hidden">
-            <div id="plan-wrapper">
-                <button id="plan-btn" class="btn btn-secondary">🖼️ Plan</button>
-                <div id="plan-menu" class="hidden">
-                    <button id="plan-upload">📁 Upload</button>
-                    <button id="plan-photo">📷 Photo</button>
-                    <button id="plan-delete">🗑️ Supprimer le plan</button>
-                </div>
-            </div>
-            <div id="other-wrapper">
-                <button id="other-btn" class="btn btn-secondary">⚙️ Autre</button>
-                <div id="other-menu" class="hidden">
-                    <button id="export-btn">📥 Exporter la config</button>
-                    <button id="import-btn">📤 Importer la config</button>
-                </div>
-            </div>
+    <div id="top-bar">
+        <button id="history-btn" class="btn btn-secondary">📜 Historique</button>
+        <div id="dcc-status" class="signal-ok">
+            <span class="signal-dot"></span><span class="signal-text">DCC OK</span>
         </div>
-        <div id="zoom-wrapper">
+        <div id="top-right-group">
+            <div id="admin-buttons" class="hidden">
+                <div id="plan-wrapper">
+                    <button id="plan-btn" class="btn btn-secondary">🖼️ Plan</button>
+                    <div id="plan-menu" class="hidden">
+                        <button id="plan-upload">📁 Upload</button>
+                        <button id="plan-photo">📷 Photo</button>
+                        <button id="plan-delete">🗑️ Supprimer le plan</button>
+                    </div>
+                </div>
+                <div id="other-wrapper">
+                    <button id="other-btn" class="btn btn-secondary">⚙️ Autre</button>
+                    <div id="other-menu" class="hidden">
+                        <button id="export-btn">📥 Exporter la config</button>
+                        <button id="import-btn">📤 Importer la config</button>
+                    </div>
+                </div>
+            </div>
+            <div id="zoom-wrapper">
             <button id="zoom-btn" class="btn btn-secondary">🔍 Zoom</button>
             <div id="zoom-picker" class="hidden">
                 <button data-zoom="2">×2</button>
@@ -58,6 +61,9 @@
                 <button id="zoom-free"><span class="zoom-free-icon">🔓</span> Zoom libre</button>
             </div>
         </div>
+        <div id="mute-wrapper">
+            <button id="mute-btn" class="btn btn-secondary">🔊</button>
+        </div>
         <div id="user-wrapper">
             <button id="user-btn" class="btn btn-secondary">👤</button>
             <div id="user-menu" class="hidden">
@@ -65,6 +71,7 @@
             </div>
         </div>
         <button id="mode-btn" class="btn btn-user">🔒 Mode Utilisateur</button>
+    </div>
     </div>
 
     <div id="zoom-tabs" class="hidden"></div>
