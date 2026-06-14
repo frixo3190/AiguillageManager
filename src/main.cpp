@@ -77,18 +77,13 @@ void notifyDccMsg(DCC_MSG * msg) {
     uint16_t addr = (msg->Data[0] << 8) | msg->Data[1];
     uint8_t cmd = msg->Data[2];
     
-    int indexBase = (addr - 32264) / 2;
-    int numBloc = indexBase / 4;
-    int positionLocale = ((indexBase % 4) + 4) % 4;
-    int blocCorrige = numBloc ^ 4;
-    int calcSwitch = (blocCorrige * 4) + positionLocale - 359;
-    if (calcSwitch <= 0) calcSwitch += 364;
-    else if (calcSwitch > 200) calcSwitch -= 252;
+    int base = addr - 33016;
+    int calcSwitch = (base / 256) * 4 + ((base % 256) / 2) + 1;
     int mode = (addr % 2) + 1;
     
     int switchId = -1;
     for (int i = 0; i < 6; i++) {
-      if (switchDccAddresses[i] == addr) {
+      if (switchDccAddresses[i] == calcSwitch) {
         switchId = i;
         break;
       }

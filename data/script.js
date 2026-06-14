@@ -456,9 +456,18 @@ function showToast(message) {
     else if (message.includes('✓')) { icon = 'ok'; glyph = '✓'; }
     else if (message.includes('✕') || message.includes('Erreur') || message.includes('Échec')) { icon = 'err'; glyph = '✕'; }
     else if (message.includes('⇄')) { icon = 'ok'; glyph = '🔄'; }
+    else if (message.includes('Ouverture')) { icon = 'ok'; glyph = ''; }
+    else if (message.includes('Fermeture')) { icon = 'warn'; glyph = ''; }
     else if (message.includes('⚡') || message.includes('ARRÊT')) { icon = 'warn'; glyph = '⚡'; }
 
-    el.innerHTML = `<span class="toast-icon ${icon}">${glyph}</span><span>${message}</span>`;
+    let svg = '';
+    if (message.includes('Ouverture')) {
+        svg = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 L12 12 L4 21" stroke="#ff3b30" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M12 3 L12 12 L20 21" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+    } else if (message.includes('Fermeture')) {
+        svg = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 L12 12 L20 21" stroke="#ff3b30" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M12 3 L12 12 L4 21" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+    }
+
+    el.innerHTML = `<span class="toast-icon ${icon}">${svg || glyph}</span><span>${message}</span>`;
     el.onclick = () => {
         el.classList.add('fade-out');
         setTimeout(() => el.remove(), 300);
@@ -584,7 +593,7 @@ eventSource.addEventListener('emergency-stop', (e) => {
                 dccBeacon.classList.add('hidden');
             } else if (!cancelDccOff) {
                 signalIndicator.className = 'signal-ko';
-                signalText.innerHTML = '🚨 DCC KO (ou) Arrêt urgence';
+                signalText.innerHTML = '🚨 DCC KO ou Arrêt urgence';
                 dccBeacon.classList.remove('hidden');
             }
             logAction('Arrêt d\'urgence levé');
@@ -610,7 +619,7 @@ eventSource.addEventListener('dcc-signal', (e) => {
             dccSignalPresent = false;
             if (emergencyOverlay.classList.contains('hidden') && !cancelDccOff) {
                 signalIndicator.className = 'signal-ko';
-                signalText.innerHTML = '🚨 DCC KO (ou) Arrêt urgence';
+                signalText.innerHTML = '🚨 DCC KO ou Arrêt urgence';
                 dccBeacon.classList.remove('hidden');
                 dccPlayAlert();
             }
@@ -740,13 +749,8 @@ setInterval(() => {
 }, 3000);
 
 function dccAddrToSwitchNum(addr, cmd) {
-    let indexBase = Math.floor((addr - 32264) / 2);
-    let numBloc = Math.floor(indexBase / 4);
-    let positionLocale = ((indexBase % 4) + 4) % 4;
-    let blocCorrige = numBloc ^ 4;
-    let n = (blocCorrige * 4) + positionLocale - 359;
-    if (n <= 0) n += 364;
-    else if (n > 200) n -= 252;
+    let base = addr - 33016;
+    let n = Math.floor(base / 256) * 4 + Math.floor((base % 256) / 2) + 1;
     if (n >= 1 && n <= 99) return n;
     return null;
 }
@@ -836,12 +840,14 @@ function handleDccSwitch(switchId, state, source, user) {
 
     config.switches[switchId].state = state;
     updateSwitchAppearance(switchId);
-    dccPlaySwitch();
+    dccPlaySwitch(modeLabel);
+
+    let displayAddr = config.switches[switchId].dccAddress || (switchId + 1);
 
     if (source === 'web') {
-        logAction(`⇄ ${user || 'Inconnu'} a basculé l'aiguillage ${switchId + 1} en ${modeLabel}`);
+        logAction(`⇄ ${user || 'Inconnu'} a basculé l'aiguillage ${displayAddr} en ${modeLabel}`);
     } else {
-        logAction(`⚡ Aiguillage ${switchId + 1} basculé en ${modeLabel} (DCC)`);
+        logAction(`⚡ Aiguillage ${displayAddr} basculé en ${modeLabel} (DCC)`);
     }
 
     saveConfig();
