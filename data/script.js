@@ -80,6 +80,9 @@ renderSuggestions();
 userBtn.onclick = (e) => {
     e.stopPropagation();
     userMenu.classList.toggle('hidden');
+    zoomPicker.classList.add('hidden');
+    historyPanel.classList.add('hidden');
+    dccLogPanel.classList.add('hidden');
 };
 
 document.addEventListener('click', () => userMenu.classList.add('hidden'));
@@ -215,6 +218,8 @@ const reconnectModal = document.getElementById('reconnect-modal');
 signalIndicator.onclick = (e) => {
     e.stopPropagation();
     dccLogPanel.classList.toggle('hidden');
+    zoomPicker.classList.add('hidden');
+    userMenu.classList.add('hidden');
     historyPanel.classList.add('hidden');
     if (!dccLogPanel.classList.contains('hidden')) renderDccLog();
 };
@@ -247,8 +252,15 @@ const zoomLayer = document.getElementById('zoom-layer');
 const zoomPicker = document.getElementById('zoom-picker');
 const zoomBtn = document.getElementById('zoom-btn');
 const zoomTabs = document.getElementById('zoom-tabs');
+const zoomCancel = document.getElementById('zoom-cancel');
 
-zoomBtn.onclick = () => zoomPicker.classList.toggle('hidden');
+zoomBtn.onclick = () => {
+    zoomPicker.classList.toggle('hidden');
+    updateZoomCancel();
+    userMenu.classList.add('hidden');
+    historyPanel.classList.add('hidden');
+    dccLogPanel.classList.add('hidden');
+};
 
 let freeZoomActive = false;
 let pendingSaveIds = [];
@@ -274,6 +286,17 @@ document.getElementById('zoom-free').onclick = () => {
     freeZoomY = 0;
     applyZoom();
     zoomBtn.innerHTML = "🔓 Zoom libre";
+};
+
+function updateZoomCancel() {
+    zoomCancel.classList.toggle('hidden', zoomLevel <= 1 && !freeZoomActive);
+}
+
+zoomCancel.onclick = () => {
+    freeZoomActive = false;
+    zoomLevel = 1;
+    zoomPicker.classList.add('hidden');
+    applyZoom();
 };
 
 zoomLayer.addEventListener('touchstart', (e) => {
@@ -381,6 +404,7 @@ function applyZoom() {
     }
 
     renderSwitches();
+    updateZoomCancel();
 }
 
 function renderZoomTabs() {
@@ -455,6 +479,8 @@ function logAction(message, noToast) {
 historyBtn.onclick = (e) => {
     e.stopPropagation();
     historyPanel.classList.toggle('hidden');
+    zoomPicker.classList.add('hidden');
+    userMenu.classList.add('hidden');
     dccLogPanel.classList.add('hidden');
 };
 
@@ -527,6 +553,7 @@ eventSource.addEventListener('emergency-stop', (e) => {
         const data = JSON.parse(e.data);
         const signalText = signalIndicator.querySelector('.signal-text');
         if (data.active) {
+            dccSignalPresent = true;
             emergencyOverlay.classList.remove('hidden');
             signalIndicator.className = 'signal-emergency';
             signalText.textContent = 'ARRET URGENCE';
@@ -580,6 +607,18 @@ eventSource.addEventListener('dcc-unknown', (e) => {
         let key = `un-${data.address}-${data.cmd}`;
         if (dccLogEnabled && key !== lastDccKey) console.log(`[DCC] {address: ${data.address}, cmd: ${data.cmd}}`);
         dccLogAdd('un', data);
+    } catch (err) {
+        console.error('SSE parse error:', err);
+    }
+});
+
+eventSource.addEventListener('dcc-emergency', (e) => {
+    onSSEEvent(e);
+    try {
+        const data = JSON.parse(e.data);
+        dccLogAdd('em', data);
+        let key = `em-1`;
+        if (dccLogEnabled && key !== lastDccKey) console.log('[DCC] {emergency: true}');
     } catch (err) {
         console.error('SSE parse error:', err);
     }
@@ -643,7 +682,10 @@ function dccOrderType(addr) {
 let lastDccKey = null;
 
 function dccLogAdd(type, data) {
-    let key = type === 'sw' ? `sw-${data.id}-${data.state}` : `un-${data.address}-${data.cmd}`;
+    let key;
+    if (type === 'sw') key = `sw-${data.id}-${data.state}`;
+    else if (type === 'em') key = 'em';
+    else key = `un-${data.address}-${data.cmd}`;
     if (key === lastDccKey) return;
     lastDccKey = key;
     dccLogEntries.push({ type, data, time: new Date() });
@@ -653,14 +695,20 @@ function dccLogAdd(type, data) {
 function renderDccLog() {
     if (dccLogPanel.classList.contains('hidden')) return;
     let entries = dccLogFilterOn
-        ? dccLogEntries.filter(e => e.type === 'sw' || dccAddrToSwitchNum(e.data.address) !== null)
+        ? dccLogEntries.filter(e => e.type === 'em' || e.type === 'sw' || dccAddrToSwitchNum(e.data.address) !== null)
         : dccLogEntries;
     entries = [...entries].reverse();
     dccLogList.innerHTML = entries.map(e => {
         let time = e.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         let isSwitch = false;
         let label, icon, detail;
-        if (e.type === 'sw') {
+        let rowClass = '';
+        if (e.type === 'em') {
+            rowClass = 'dcc-log-item-em';
+            label = 'ARRÊT D\'URGENCE';
+            detail = 'Stop général reçu de la centrale';
+            icon = '<span class="dcc-log-icon material-symbols-outlined">report</span>';
+        } else if (e.type === 'sw') {
             isSwitch = true;
             let mode = (e.data.state || 0) + 1;
             let modeLabel = mode === 1 ? 'Ouverture' : 'Fermeture';
@@ -687,7 +735,7 @@ function renderDccLog() {
                 icon = '<span class="dcc-log-icon unknown material-symbols-outlined">help</span>';
             }
         }
-        return `<li class="dcc-log-item">${icon}<div><span class="dcc-log-time">${time}</span><span class="dcc-log-addr ${isSwitch ? 'known' : 'unknown'}">${label}</span><span class="dcc-log-detail">${detail}</span></div></li>`;
+        return `<li class="dcc-log-item ${rowClass}">${icon}<div><span class="dcc-log-time">${time}</span><span class="dcc-log-addr ${isSwitch ? 'known' : 'unknown'}">${label}</span><span class="dcc-log-detail">${detail}</span></div></li>`;
     }).join('');
 }
 
@@ -695,7 +743,7 @@ function updateSwitchAppearance(index) {
     const btn = switchesContainer.querySelector(`.switch:nth-child(${index + 1})`);
     if (btn) {
         const sw = config.switches[index];
-        btn.style.backgroundColor = sw.state === 0 ? "#34c759" : "#ffcc00";
+        btn.style.backgroundColor = sw.state === 0 ? "rgba(52,199,89,0.35)" : "rgba(255,204,0,0.35)";
     }
     const tab = zoomTabs.querySelector(`button:nth-child(${index + 1})`);
     if (tab) {
@@ -850,7 +898,7 @@ function renderSwitches() {
         let btn = document.createElement('div');
         btn.className = 'switch';
         if (sw.size > 1) btn.classList.add(`size-${sw.size}`);
-        btn.style.backgroundColor = sw.state === 0 ? "#34c759" : "#ffcc00"; 
+        btn.style.backgroundColor = sw.state === 0 ? "rgba(52,199,89,0.35)" : "rgba(255,204,0,0.35)"; 
         btn.innerHTML = sw.dccAddress;
 
         if (sw.visible === false) {

@@ -27,6 +27,7 @@ bool signalPresent = true;
 int dccPinLastState = -1;
 unsigned long lastDccPinEvent = 0;
 bool dccPinLogEnabled = false;
+bool emergencyStopActive = false;
 uint16_t lastUnknownAddr = 0;
 uint8_t lastUnknownCmd = 0;
 unsigned long lastUnknownTime = 0;
@@ -132,17 +133,20 @@ void notifyDccSpeed(uint16_t addr, DCC_ADDR_TYPE addrType, uint8_t speed, DCC_DI
 
 void notifyDccNormalOperation(uint16_t addr, DCC_ADDR_TYPE addrType) {
   lastDccSignal = millis();
+  emergencyStopActive = false;
   events->send("{\"active\":false}", "emergency-stop");
 }
 
 void notifyDccSubsystemStop(uint8_t StopState) {
   lastDccSignal = millis();
+  emergencyStopActive = (StopState == 1);
   Serial.print("DCC: SUBSYSTEM STOP - ");
   Serial.println(StopState);
-  if (StopState == 1) {
-    events->send("{\"active\":true}", "emergency-stop");
-  } else {
-    events->send("{\"active\":false}", "emergency-stop");
+  char jsonBuf[100];
+  snprintf(jsonBuf, sizeof(jsonBuf), "{\"active\":%d}", StopState == 1 ? 1 : 0);
+  events->send(jsonBuf, "emergency-stop");
+  if (emergencyStopActive) {
+    events->send(jsonBuf, "dcc-emergency");
   }
 }
 
@@ -420,7 +424,7 @@ void loop() {
     }
   }
   
-  if (signalPresent && (millis() - lastDccSignal >= DCC_SIGNAL_TIMEOUT)) {
+  if (signalPresent && !emergencyStopActive && (millis() - lastDccSignal >= DCC_SIGNAL_TIMEOUT)) {
     signalPresent = false;
     events->send("{\"present\":false}", "dcc-signal");
   }
