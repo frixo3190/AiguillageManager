@@ -740,7 +740,13 @@ setInterval(() => {
 }, 3000);
 
 function dccAddrToSwitchNum(addr, cmd) {
-    let n = (((addr - 32768) >> 2) ^ 4) * 4 + (cmd & 3) + 1;
+    let indexBase = Math.floor((addr - 32264) / 2);
+    let numBloc = Math.floor(indexBase / 4);
+    let positionLocale = ((indexBase % 4) + 4) % 4;
+    let blocCorrige = numBloc ^ 4;
+    let n = (blocCorrige * 4) + positionLocale - 359;
+    if (n <= 0) n += 364;
+    else if (n > 200) n -= 252;
     if (n >= 1 && n <= 99) return n;
     return null;
 }
