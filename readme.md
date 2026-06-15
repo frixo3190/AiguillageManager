@@ -59,7 +59,13 @@ Grâce à ce boîtier, vous pouvez piloter vos aiguillages de deux manières :
 
 ## 🛠️ Hardware
 
-Pour matérialiser ce projet, il est nécessaire de fabriquer une carte électronique sur mesure qui sert d'interface de puissance et de sécurité. Vous trouverez dans ce projet un dossier nommé `gerber.zip` contenant tous les fichiers de fabrication industriels. Il vous suffit de téléverser ce fichier zip sur un site de fabrication en Chine (comme JLCPCB ou PCBWay) pour commander et faire imprimer le circuit imprimé (PCB) professionnel pour moins de 10 €. Une fois la carte reçue, il faudra acheter les composants nécessaires et souder le tout vous-même.
+Pour matérialiser ce projet, il est nécessaire de fabriquer une carte électronique sur mesure qui sert d'interface de puissance et de sécurité. Vous trouverez dans ce projet un dossier nommé `gerber.zip` contenant tous les fichiers de fabrication industriels.
+
+Pour la commande du PCB, vous pouvez passer par **JLCPCB** (aucun lien ni affiliation). En dehors du délai de livraison proche d'un mois, c'est vraiment le moins cher. Il vous suffit de téléverser le fichier `gerber.zip` sur leur site pour commander et faire imprimer le circuit imprimé professionnel pour moins de 10 €.
+
+Pour les pièces détachées (composants électroniques), je conseille **AliExpress** (aucun lien ni affiliation).
+
+Une fois la carte et les composants reçus, il faudra souder le tout vous-même.
 
 <p align="center">
   <img src="image_readme/carte.jpg" alt="Circuit imprimé (PCB)" width="600">
@@ -67,8 +73,9 @@ Pour matérialiser ce projet, il est nécessaire de fabriquer une carte électro
 </p>
 
 <p align="center">
-  <img src="image_readme/carte%20et%20aiguillage%20annot%C3%A9e.png" alt="Carte et aiguillage annotés" width="600">
+  <img src="image_readme/carte_annotee.png" alt="Carte et aiguillage annotés" width="600">
   <br><em>Carte et aiguillage annotés — repérage des principaux composants et connexions.</em>
+  <br><em>⚠️ Sur la photo, on voit qu'une résistance de 10 kΩ a été shuntée. Il s'agit d'une erreur de conception de la V1.0, corrigée dans la <strong>V1.1</strong> (présente dans ce projet). Dans la V1.1, cette résistance est correctement soudée sur le circuit imprimé. Dans la V1.0, la résistance est également présente mais a dû être soudée manuellement à l'arrière de la carte de façon peu propre.</em>
 </p>
 
 En entrée, cette carte doit être alimentée par un **bloc d'alimentation 12V - 2A** (référence exacte : alimentation à découpage 12V 2A avec connecteur Jack DC 5.5 × 2.1 mm). Une fois cette alimentation branchée sur le connecteur Jack de la carte, il n'est plus du tout nécessaire d'alimenter l'ESP32 en USB-C, car le circuit s'occupe de réguler et de distribuer l'énergie nécessaire au microcontrôleur.
