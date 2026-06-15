@@ -1,6 +1,15 @@
 # 🚂 AiguillageManager — TCO Wi-Fi & Décodeur DCC pour Aiguillages
 
+<p align="center">
+  <img src="image_readme/icone.png" alt="AiguillageManager" width="128">
+</p>
+
 Le but de ce projet est de numériser et de rendre compatibles DCC les aiguillages à bobines traditionnels (les modèles analogiques classiques que l'on trouve d'occasion pour quelques euros).
+
+<p align="center">
+  <img src="image_readme/aiguillage.jpg" alt="Aiguillage à bobine traditionnel" width="500">
+  <br><em>Aiguillage à bobine standard — le genre d'aiguillage que ce projet permet de piloter en Wi-Fi et en DCC.</em>
+</p>
 
 Grâce à ce boîtier, vous pouvez piloter vos aiguillages de deux manières :
 
@@ -51,6 +60,16 @@ Grâce à ce boîtier, vous pouvez piloter vos aiguillages de deux manières :
 ## 🛠️ Hardware
 
 Pour matérialiser ce projet, il est nécessaire de fabriquer une carte électronique sur mesure qui sert d'interface de puissance et de sécurité. Vous trouverez dans ce projet un dossier nommé `gerber.zip` contenant tous les fichiers de fabrication industriels. Il vous suffit de téléverser ce fichier zip sur un site de fabrication en Chine (comme JLCPCB ou PCBWay) pour commander et faire imprimer le circuit imprimé (PCB) professionnel pour moins de 10 €. Une fois la carte reçue, il faudra acheter les composants nécessaires et souder le tout vous-même.
+
+<p align="center">
+  <img src="image_readme/carte.jpg" alt="Circuit imprimé (PCB)" width="600">
+  <br><em>Carte électronique du projet — interface de puissance et de sécurité pour 6 aiguillages.</em>
+</p>
+
+<p align="center">
+  <img src="image_readme/carte%20et%20aiguillage%20annot%C3%A9e.png" alt="Carte et aiguillage annotés" width="600">
+  <br><em>Carte et aiguillage annotés — repérage des principaux composants et connexions.</em>
+</p>
 
 En entrée, cette carte doit être alimentée par un **bloc d'alimentation 12V - 2A** (référence exacte : alimentation à découpage 12V 2A avec connecteur Jack DC 5.5 × 2.1 mm). Une fois cette alimentation branchée sur le connecteur Jack de la carte, il n'est plus du tout nécessaire d'alimenter l'ESP32 en USB-C, car le circuit s'occupe de réguler et de distribuer l'énergie nécessaire au microcontrôleur.
 
