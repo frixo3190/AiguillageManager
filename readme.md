@@ -65,7 +65,7 @@ Pour cela, le circuit intègre une **triple sécurité** indispensable :
 
 | Composant | Description / Rôle | Qté |
 |---|---|---|
-| ESP32 NodeMCU | Microcontrôleur (cerveau du projet, version 30 ou 38 broches selon votre PCB) | 1 |
+| Module WiFi D1 MINI ESP32 | Microcontrôleur (cerveau du projet, version 30 ou 38 broches selon votre PCB) | 1 |
 | Optocoupleur 6N137 | Isolation haute vitesse pour la lecture du signal DCC des rails | 1 |
 | Support DIP-8 | Support pour accueillir l'optocoupleur 6N137 sans avoir à le souder directement | 1 |
 | Optocoupleurs PC817 | Isolation des signaux de commande des aiguillages (sécurité CPU) | 12 |
@@ -78,7 +78,10 @@ Pour cela, le circuit intègre une **triple sécurité** indispensable :
 | Résistances (220 Ω à 1 kΩ) | Résistances de commande pour les lignes des transistors | 12 |
 | Condensateur 100 nF | Condensateur de découplage pour stabiliser l'alimentation du 6N137 | 1 |
 | Borniers à vis 5.08 mm | Connecteurs pour l'arrivée des rails et les sorties vers les aiguillages | Selon design |
+| Inducteur de perle de ferrite (6 canaux) | Filtre antiparasite multi-lignes pour bloquer les bruits électromagnétiques | 1 |
 | Prise Jack DC femelle | Connecteur d'alimentation pour recevoir le bloc 12V (5.5 × 2.1 mm) | 1 |
+
+> ⚠️ **Conseil important :** Prenez le temps de bien souder chaque composant, dans le bon sens. Un défaut de soudure (point sec, court-circuit, composant inversé) peut rendre la carte inopérante, voire endommager définitivement l'ESP32 ou les composants connectés. Une inspection visuelle à la lampe et un passage au multimètre avant la mise sous tension sont vivement recommandés.
 
 ### Détails de conception
 
@@ -144,7 +147,27 @@ pio run --target uploadfs --upload-port AiguillageManager.local
 
 ---
 
+## ⚖️ Avertissement légal
+
+Ce projet est fourni à titre éducatif et récréatif. La fabrication, le câblage, la mise sous tension et l'utilisation de cette carte électronique se font **sous votre entière responsabilité**.
+
+Le créateur de ce projet ne peut être tenu responsable :
+- d'un défaut de fabrication,
+- d'une erreur de conception,
+- d'un mauvais branchement,
+- d'un court-circuit,
+- d'un incendie ou de tout autre dommage matériel ou corporel,
+- ni de toute conséquence directe ou indirecte liée à l'utilisation de ce projet.
+
+En réalisant ce projet, vous reconnaissez avoir les compétences nécessaires en soudure et en électronique, ou accepter de vous former avant de commencer.
+
+---
+
 ## 🧩 Licence & Crédits
+
+Ce projet est **entièrement libre et open-source**. Vous pouvez l'utiliser, le modifier, le partager et le distribuer sans aucune restriction.
+
+Seule petite attention : si vous le partagez, présentez-le ou en parlez autour de vous, merci de mentionner qu'il a été créé **by Frixo**.
 
 Développé sous supervision humaine, code généré par IA.
 Librairies : NmraDcc, ESPAsyncWebServer, ArduinoJson.
