@@ -1,4 +1,4 @@
-# 🚂 AiguillageManager — TCO Wi-Fi & Décodeur DCC pour Aiguillages
+# 🚂 AiguillageManager — Pilotez en DCC vos aiguillages à solénoïde
 
 <p align="center">
   <img src="image_readme/icone.png" alt="AiguillageManager" width="128">
