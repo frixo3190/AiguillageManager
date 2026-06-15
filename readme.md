@@ -78,6 +78,13 @@ Une fois la carte et les composants reçus, il faudra souder le tout vous-même.
   <br><em>⚠️ Sur la photo, on voit qu'une résistance de 10 kΩ a été shuntée. Il s'agit d'une erreur de conception de la V1.0, corrigée dans la <strong>V1.1</strong> (présente dans ce projet). Dans la V1.1, cette résistance est correctement soudée sur le circuit imprimé. Dans la V1.0, la résistance est également présente mais a dû être soudée manuellement à l'arrière de la carte de façon peu propre.</em>
 </p>
 
+<p align="center">
+  <img src="image_readme/boitier3D.png" alt="Boîtier 3D" width="500">
+  <br><em>Boîtier d'impression 3D — pour protéger la carte électronique et la connectique.</em>
+</p>
+
+Un fichier **STL** est inclus dans ce projet pour imprimer un boîtier de protection adapté aux dimensions exactes du PCB. Il est recommandé d'imprimer ce boîtier en **PETG** (éviter l'ABS, car la carte peut chauffer un peu). Le fichier STL doit être transformé en GCode comme d'habitude — je conseille le logiciel **CURA** (aucun lien ni affiliation).
+
 En entrée, cette carte doit être alimentée par un **bloc d'alimentation 12V - 2A** (référence exacte : alimentation à découpage 12V 2A avec connecteur Jack DC 5.5 × 2.1 mm). Une fois cette alimentation branchée sur le connecteur Jack de la carte, il n'est plus du tout nécessaire d'alimenter l'ESP32 en USB-C, car le circuit s'occupe de réguler et de distribuer l'énergie nécessaire au microcontrôleur.
 
 En sortie, cette carte électronique fournit de quoi alimenter **jusqu'à 6 aiguillages standards en 12V**, et permet de contrôler individuellement le basculement dans les deux sens (voie directe ou voie déviée) pour chacun de ces 6 aiguillages.
