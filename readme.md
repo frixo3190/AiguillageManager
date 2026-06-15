@@ -73,6 +73,16 @@ Une fois la carte et les composants reçus, il faudra souder le tout vous-même.
 </p>
 
 <p align="center">
+  <img src="image_readme/carte_composant.png" alt="PCB avec références des composants" width="600">
+  <br><em>PCB avec l'emplacement et les références de chaque composant.</em>
+</p>
+
+<p align="center">
+  <img src="image_readme/carte_composant3D.png" alt="PCB avec composants 3D" width="600">
+  <br><em>PCB avec les composants 3D — vue réaliste de la carte une fois assemblée.</em>
+</p>
+
+<p align="center">
   <img src="image_readme/carte_annotee.png" alt="Carte et aiguillage annotés" width="600">
   <br><em>Carte et aiguillage annotés — repérage des principaux composants et connexions.</em>
   <br><em>⚠️ Sur la photo, on voit qu'une résistance de 10 kΩ a été shuntée. Il s'agit d'une erreur de conception de la V1.0, corrigée dans la <strong>V1.1</strong> (présente dans ce projet). Dans la V1.1, cette résistance est correctement soudée sur le circuit imprimé. Dans la V1.0, la résistance est également présente mais a dû être soudée manuellement à l'arrière de la carte de façon peu propre.</em>
